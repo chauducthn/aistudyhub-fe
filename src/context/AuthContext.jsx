@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as authApi from '../api/authApi'
 import { clearAccessToken, setAccessToken, setUnauthorizedHandler } from '../api/client'
+import AuthContext from './authContextValue'
 
-const AuthContext = createContext(null)
 let sharedRefreshPromise = null
 
 export function AuthProvider({ children }) {
@@ -40,12 +40,18 @@ export function AuthProvider({ children }) {
       }
     })
 
-    refreshSession()
-      .catch(() => {
+    const initializeSession = async () => {
+      try {
+        await refreshSession()
+      } catch {
         clearAccessToken()
         setUser(null)
-      })
-      .finally(() => setInitializing(false))
+      } finally {
+        setInitializing(false)
+      }
+    }
+
+    void initializeSession()
 
     return () => setUnauthorizedHandler(null)
   }, [refreshSession])
@@ -89,6 +95,23 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  const updateProfile = useCallback(async (payload) => {
+    const response = await authApi.updateProfile(payload)
+    if (!response.success) {
+      throw new Error(response.message || 'Profile update failed')
+    }
+    setUser(response.data)
+    return response.data
+  }, [])
+
+  const changePassword = useCallback(async (payload) => {
+    const response = await authApi.changePassword(payload)
+    if (!response.success) {
+      throw new Error(response.message || 'Password change failed')
+    }
+    return response
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
@@ -98,17 +121,11 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      updateProfile,
+      changePassword,
     }),
-    [user, loading, initializing, login, register, logout],
+    [user, loading, initializing, login, register, logout, updateProfile, changePassword],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
-  }
-  return context
 }

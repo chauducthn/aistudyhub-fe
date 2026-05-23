@@ -31,3 +31,19 @@ export async function getCurrentUser() {
   const { data } = await apiClient.get('/users/me')
   return data
 }
+
+export async function updateProfile({ fullName, avatarUrl }) {
+  const { data } = await apiClient.patch('/users/me', {
+    fullName,
+    avatarUrl,
+  })
+  return data
+}
+
+export async function changePassword({ currentPassword, newPassword }) {
+  const { data } = await apiClient.patch('/users/me/password', {
+    currentPassword,
+    newPassword,
+  })
+  return data
+}
