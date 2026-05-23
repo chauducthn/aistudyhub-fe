@@ -3,6 +3,7 @@ import * as authApi from '../api/authApi'
 import { clearAccessToken, setAccessToken, setUnauthorizedHandler } from '../api/client'
 
 const AuthContext = createContext(null)
+let sharedRefreshPromise = null
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -10,10 +11,19 @@ export function AuthProvider({ children }) {
   const [initializing, setInitializing] = useState(true)
 
   const refreshSession = useCallback(async () => {
-    const response = await authApi.refresh()
+    if (!sharedRefreshPromise) {
+      sharedRefreshPromise = authApi.refresh().finally(() => {
+        setTimeout(() => {
+          sharedRefreshPromise = null
+        }, 100)
+      })
+    }
+
+    const response = await sharedRefreshPromise
     if (!response.success) {
       throw new Error(response.message || 'Session refresh failed')
     }
+
     setAccessToken(response.data.accessToken)
     setUser(response.data.user)
     return response.data.accessToken
