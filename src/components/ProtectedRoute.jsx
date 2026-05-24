@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { normalizeRole } from '../utils/roles'
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { initializing, isAuthenticated, user } = useAuth()
@@ -17,7 +18,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
-  if (allowedRoles?.length && !allowedRoles.includes(user?.role)) {
+  const normalizedAllowedRoles = allowedRoles?.map(normalizeRole) || []
+
+  if (normalizedAllowedRoles.length && !normalizedAllowedRoles.includes(normalizeRole(user?.role))) {
     return <Navigate to="/dashboard" replace />
   }
 

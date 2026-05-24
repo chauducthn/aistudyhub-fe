@@ -2,17 +2,13 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
+import AdminUsersPage from './pages/AdminUsersPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import ProfileSettingsPage from './pages/ProfileSettingsPage'
 import RegisterPage from './pages/RegisterPage'
 import UserDashboardPage from './pages/UserDashboardPage'
-
-import { ProtectedRoute as TrilmProtectedRoute, GuestRoute as TrilmGuestRoute } from './utils/ProtectedRoute'
-import TrilmHomePage from './pages/Home'
-import AuthPage from './pages/Login'
-import StudentDashboard from './pages/student/Dashboard'
-import AdminDashboard from './pages/admin/Dashboard'
+import { ROLES } from './utils/roles'
 
 export default function App() {
   return (
@@ -20,19 +16,11 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/v2-home" element={<TrilmHomePage />} />
+          <Route path="/v2-home" element={<Navigate to="/" replace />} />
           
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          
-          <Route
-            path="/auth"
-            element={
-              <TrilmGuestRoute>
-                <AuthPage />
-              </TrilmGuestRoute>
-            }
-          />
+          <Route path="/auth" element={<Navigate to="/login" replace />} />
 
           <Route
             path="/dashboard"
@@ -42,31 +30,25 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/student/dashboard"
-            element={
-              <TrilmProtectedRoute role="student">
-                <StudentDashboard />
-              </TrilmProtectedRoute>
-            }
-          />
+          <Route path="/student/dashboard" element={<Navigate to="/dashboard" replace />} />
 
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                 <AdminDashboardPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/admin/dashboard-v2"
+            path="/admin/users"
             element={
-              <TrilmProtectedRoute role="admin">
-                <AdminDashboard />
-              </TrilmProtectedRoute>
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminUsersPage />
+              </ProtectedRoute>
             }
           />
+          <Route path="/admin/dashboard-v2" element={<Navigate to="/admin/dashboard" replace />} />
 
           <Route
             path="/profile"

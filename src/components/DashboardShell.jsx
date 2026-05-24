@@ -3,8 +3,18 @@ import BrandLogo from './BrandLogo'
 import { useAuth } from '../context/useAuth'
 
 const userItems = ['Dashboard', 'My Documents', 'Upload', 'Subjects', 'AI Chatbot', 'Chat History']
-const adminItems = ['Admin Dashboard', 'User Management', 'Subject Management', 'Document Moderation', 'All Documents']
-const adminAnalytics = ['Analytics', 'Storage Usage', 'Reports']
+const adminItems = [
+  { label: 'Admin Dashboard', to: '/admin/dashboard' },
+  { label: 'User Management', to: '/admin/users' },
+  { label: 'Subject Management', to: '/admin/dashboard' },
+  { label: 'Document Moderation', to: '/admin/dashboard' },
+  { label: 'All Documents', to: '/admin/dashboard' },
+]
+const adminAnalytics = [
+  { label: 'Analytics', to: '/admin/dashboard' },
+  { label: 'Storage Usage', to: '/admin/dashboard' },
+  { label: 'Reports', to: '/admin/dashboard' },
+]
 
 export default function DashboardShell({ type = 'user', children }) {
   const { logout } = useAuth()
@@ -24,8 +34,8 @@ export default function DashboardShell({ type = 'user', children }) {
 
         {isAdmin ? (
           <>
-            <SideGroup title="Main Menu" items={adminItems} active="Admin Dashboard" basePath={basePath} />
-            <SideGroup title="Analytics" items={adminAnalytics} basePath={basePath} />
+            <SideGroup title="Main Menu" items={adminItems} />
+            <SideGroup title="Analytics" items={adminAnalytics} />
           </>
         ) : (
           <>
@@ -56,11 +66,14 @@ export default function DashboardShell({ type = 'user', children }) {
           </>
         )}
 
-        <div className="mt-auto border-t border-slate-200 pt-6">
+        <div className="mt-5 border-t border-slate-200 pt-4">
           <Link to="/profile" className="flex items-center gap-3 px-2 py-3 text-lg font-semibold text-[#4f5668]">
-            ◎ Profile
+            ● Profile
           </Link>
-          <button onClick={handleLogout} className="flex items-center gap-3 px-2 py-3 text-lg font-semibold text-red-600">
+          <button
+            onClick={handleLogout}
+            className="flex cursor-pointer items-center gap-3 px-2 py-3 text-lg font-semibold text-red-600 transition hover:text-red-700"
+          >
             ↪ Logout
           </button>
         </div>
@@ -71,21 +84,23 @@ export default function DashboardShell({ type = 'user', children }) {
   )
 }
 
-function SideGroup({ title, items, active, basePath }) {
+function SideGroup({ title, items }) {
   return (
-    <div className="mt-12">
+    <div className="mt-9">
       <p className="px-2 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">{title}</p>
-      <nav className="mt-5 space-y-2">
+      <nav className="mt-4 space-y-1.5">
         {items.map((item) => (
           <NavLink
-            key={item}
-            to={basePath}
-            className={`flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-semibold ${
-              item === active ? 'bg-[#3b2be0] text-white' : 'text-[#4f5668]'
-            }`}
+            key={item.label}
+            to={item.to}
+            className={({ isActive }) =>
+              `flex items-center gap-4 rounded-lg px-4 py-2.5 text-lg font-semibold ${
+                isActive ? 'bg-[#3b2be0] text-white' : 'text-[#4f5668]'
+              }`
+            }
           >
-            <span>{item === active ? '▦' : '□'}</span>
-            {item}
+            <span>□</span>
+            {item.label}
           </NavLink>
         ))}
       </nav>

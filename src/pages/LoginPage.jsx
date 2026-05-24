@@ -5,6 +5,7 @@ import loginVisual from '../assets/illustrations/students-ai-tools.svg'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
+import { isAdminRole } from '../utils/roles'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
     try {
       const data = await login({ email, password })
-      const fallbackPath = data.user?.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard'
+      const fallbackPath = isAdminRole(data.user?.role) ? '/admin/dashboard' : '/dashboard'
       navigate(location.state?.from?.pathname || fallbackPath, { replace: true })
     } catch (err) {
       setError(getApiErrorMessage(err, 'Login failed. Please check your credentials.'))

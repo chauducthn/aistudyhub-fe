@@ -1,34 +1,87 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DashboardShell from '../components/DashboardShell'
 import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
+import { isAdminRole } from '../utils/roles'
 
 export default function ProfileSettingsPage() {
-  const { user, updateProfile, changePassword } = useAuth()
-  const [fullName, setFullName] = useState(user?.fullName || '')
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '')
+  const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword } = useAuth()
+  const [avatarFile, setAvatarFile] = useState(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [profileMessage, setProfileMessage] = useState('')
+  const [avatarMessage, setAvatarMessage] = useState('')
   const [passwordMessage, setPasswordMessage] = useState('')
   const [profileError, setProfileError] = useState('')
+  const [avatarError, setAvatarError] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
+  const [savingAvatar, setSavingAvatar] = useState(false)
+  const [deletingAvatar, setDeletingAvatar] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+
+  const avatarPreview = useMemo(() => {
+    if (!avatarFile) return ''
+    return URL.createObjectURL(avatarFile)
+  }, [avatarFile])
+
+  useEffect(() => {
+    if (!avatarPreview) return undefined
+    return () => URL.revokeObjectURL(avatarPreview)
+  }, [avatarPreview])
 
   const handleProfileSubmit = async (event) => {
     event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const fullName = String(formData.get('fullName') || '').trim()
     setProfileMessage('')
     setProfileError('')
     setSavingProfile(true)
     try {
-      await updateProfile({ fullName, avatarUrl })
+      await updateProfile({ fullName })
       setProfileMessage('Profile updated successfully.')
     } catch (error) {
       setProfileError(getApiErrorMessage(error, 'Could not update profile.'))
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  const handleAvatarSubmit = async (event) => {
+    event.preventDefault()
+    setAvatarMessage('')
+    setAvatarError('')
+
+    if (!avatarFile) {
+      setAvatarError('Please choose an image file.')
+      return
+    }
+
+    setSavingAvatar(true)
+    try {
+      await uploadAvatar(avatarFile)
+      setAvatarFile(null)
+      setAvatarMessage('Avatar updated successfully.')
+    } catch (error) {
+      setAvatarError(getApiErrorMessage(error, 'Could not upload avatar.'))
+    } finally {
+      setSavingAvatar(false)
+    }
+  }
+
+  const handleAvatarDelete = async () => {
+    setAvatarMessage('')
+    setAvatarError('')
+    setDeletingAvatar(true)
+    try {
+      await deleteAvatar()
+      setAvatarFile(null)
+      setAvatarMessage('Avatar removed successfully.')
+    } catch (error) {
+      setAvatarError(getApiErrorMessage(error, 'Could not remove avatar.'))
+    } finally {
+      setDeletingAvatar(false)
     }
   }
 
@@ -67,9 +120,10 @@ export default function ProfileSettingsPage() {
     .join('')
     .slice(0, 2)
     .toUpperCase()
+  const displayedAvatar = avatarPreview || user?.avatarUrl || ''
 
   return (
-    <DashboardShell type={user?.role === 'ADMIN' ? 'admin' : 'user'}>
+    <DashboardShell type={isAdminRole(user?.role) ? 'admin' : 'user'}>
       <div className="px-8 py-10 lg:px-10">
         <div>
           <h1 className="text-4xl font-extrabold">Profile Settings</h1>
@@ -81,8 +135,8 @@ export default function ProfileSettingsPage() {
         <div className="mt-10 grid gap-8 xl:grid-cols-[1fr_1fr]">
           <article className="rounded-2xl bg-white p-8 shadow-sm">
             <div className="flex items-center gap-5">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
+              {displayedAvatar ? (
+                <img src={displayedAvatar} alt="" className="h-20 w-20 rounded-full object-cover" />
               ) : (
                 <div className="grid h-20 w-20 place-items-center rounded-full bg-[#e8e3ff] text-2xl font-extrabold text-[#3427d9]">
                   {initials}
@@ -101,20 +155,11 @@ export default function ProfileSettingsPage() {
               <Field label="Full Name" htmlFor="fullName">
                 <input
                   id="fullName"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
+                  name="fullName"
+                  key={user?.fullName || 'fullName'}
+                  defaultValue={user?.fullName || ''}
                   className="auth-input"
                   required
-                />
-              </Field>
-
-              <Field label="Avatar URL" htmlFor="avatarUrl">
-                <input
-                  id="avatarUrl"
-                  value={avatarUrl}
-                  onChange={(event) => setAvatarUrl(event.target.value)}
-                  className="auth-input"
-                  placeholder="https://example.com/avatar.png"
                 />
               </Field>
 
@@ -125,6 +170,41 @@ export default function ProfileSettingsPage() {
               >
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>
+            </form>
+
+            <form onSubmit={handleAvatarSubmit} className="mt-8 border-t border-slate-100 pt-8">
+              {avatarError && <Alert tone="error">{avatarError}</Alert>}
+              {avatarMessage && <Alert>{avatarMessage}</Alert>}
+
+              <Field label="Avatar Image" htmlFor="avatar">
+                <input
+                  id="avatar"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(event) => setAvatarFile(event.target.files?.[0] || null)}
+                  className="block w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#4f5668] file:mr-4 file:rounded-md file:border-0 file:bg-[#e8e3ff] file:px-4 file:py-2 file:font-bold file:text-[#3427d9]"
+                />
+              </Field>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={savingAvatar || !avatarFile}
+                  className="h-12 rounded-lg bg-[#3b2be0] px-7 font-bold text-white disabled:opacity-60"
+                >
+                  {savingAvatar ? 'Uploading...' : 'Upload Avatar'}
+                </button>
+                {user?.avatarUrl && (
+                  <button
+                    type="button"
+                    disabled={deletingAvatar}
+                    onClick={handleAvatarDelete}
+                    className="h-12 rounded-lg border border-red-200 px-7 font-bold text-red-600 disabled:opacity-60"
+                  >
+                    {deletingAvatar ? 'Removing...' : 'Remove Avatar'}
+                  </button>
+                )}
+              </div>
             </form>
           </article>
 
