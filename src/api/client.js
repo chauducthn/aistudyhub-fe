@@ -88,8 +88,13 @@ async function silentRefresh() {
 }
 
 apiClient.interceptors.request.use((config) => {
-  if (accessToken) {
+  const url = config.url || ''
+  const skipAuthHeader = isAuthNoRetryUrl(url)
+
+  if (accessToken && !skipAuthHeader) {
     config.headers.Authorization = `Bearer ${accessToken}`
+  } else if (skipAuthHeader && config.headers?.Authorization) {
+    delete config.headers.Authorization
   }
   return config
 })

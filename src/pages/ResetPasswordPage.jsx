@@ -1,6 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import BrandLogo from '../components/BrandLogo'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import loginIllustration from '../assets/illustrations/login-illustration.png'
+import AuthSplitLayout, {
+  AuthAlert,
+  AuthField,
+  AuthFormCard,
+  AuthPrimaryButton,
+  AuthTextLink,
+} from '../components/auth/AuthSplitLayout'
 import * as authApi from '../api/authApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -44,80 +51,71 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc] px-6 py-12">
-      <div className="w-full max-w-md">
-        <BrandLogo />
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white px-8 py-9 shadow-lg">
-          <h1 className="text-3xl font-extrabold text-[#102338]">Reset Password</h1>
-          <p className="mt-2 text-[#4f5668]">Enter your reset token and new password.</p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
-            )}
-            {message && (
-              <div className="rounded-lg bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{message}</div>
-            )}
-
-            <div>
-              <label htmlFor="token" className="block text-sm font-bold text-[#102338]">
-                Reset Token
-              </label>
-              <input
-                id="token"
-                required
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="auth-input mt-3 font-mono text-sm"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-bold text-[#102338]">
-                New Password
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                minLength={8}
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="auth-input mt-3"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-bold text-[#102338]">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                minLength={8}
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="auth-input mt-3"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-12 w-full rounded-lg bg-[#3b2be0] font-bold text-white disabled:opacity-60"
-            >
-              {loading ? 'Saving...' : 'Reset Password'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm">
-            <Link to="/login" className="font-extrabold text-[#3427d9]">
-              Back to Login
-            </Link>
+    <AuthSplitLayout
+      variant="login"
+      heroImage={loginIllustration}
+      heroImageAlt="AI academic workspace"
+      heroTitle={
+        <>
+          Set a new password for your{' '}
+          <span className="text-[#3525cd]">AI Study Hub</span> account.
+        </>
+      }
+      heroSubtitle="Choose a strong password with at least 8 characters."
+      showBackHome
+    >
+      <AuthFormCard
+        title="Reset Password"
+        subtitle="Enter your reset token and new password."
+        footer={
+          <p className="text-center text-sm text-[#464555]">
+            <AuthTextLink to="/login">Back to Login</AuthTextLink>
           </p>
-        </div>
-      </div>
-    </div>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {error && <AuthAlert>{error}</AuthAlert>}
+          {message && <AuthAlert tone="success">{message}</AuthAlert>}
+
+          <AuthField label="Reset Token" id="token">
+            <input
+              id="token"
+              required
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              className="auth-input font-mono text-sm"
+            />
+          </AuthField>
+
+          <AuthField label="New Password" id="newPassword">
+            <input
+              id="newPassword"
+              type="password"
+              minLength={8}
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="auth-input"
+            />
+          </AuthField>
+
+          <AuthField label="Confirm Password" id="confirmPassword">
+            <input
+              id="confirmPassword"
+              type="password"
+              minLength={8}
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="auth-input"
+            />
+          </AuthField>
+
+          <AuthPrimaryButton disabled={loading}>
+            {loading ? 'Saving...' : 'Reset Password'}
+          </AuthPrimaryButton>
+        </form>
+      </AuthFormCard>
+    </AuthSplitLayout>
   )
 }

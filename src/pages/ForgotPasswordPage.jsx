@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import BrandLogo from '../components/BrandLogo'
+import loginIllustration from '../assets/illustrations/login-illustration.png'
+import AuthSplitLayout, {
+  AuthAlert,
+  AuthField,
+  AuthFormCard,
+  AuthPrimaryButton,
+  AuthTextLink,
+} from '../components/auth/AuthSplitLayout'
 import * as authApi from '../api/authApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -35,66 +42,61 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc] px-6 py-12">
-      <div className="w-full max-w-md">
-        <BrandLogo />
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white px-8 py-9 shadow-lg">
-          <h1 className="text-3xl font-extrabold text-[#102338]">Forgot Password</h1>
-          <p className="mt-2 text-[#4f5668]">
-            Enter your email. If an account exists, we will send reset instructions.
+    <AuthSplitLayout
+      variant="login"
+      heroImage={loginIllustration}
+      heroImageAlt="AI academic workspace"
+      heroTitle={
+        <>
+          Recover access to your{' '}
+          <span className="text-[#3525cd]">Study Hub</span> account.
+        </>
+      }
+      heroSubtitle="We will send password reset instructions if your email is registered."
+      showBackHome
+    >
+      <AuthFormCard
+        title="Forgot Password"
+        subtitle="Enter your email. If an account exists, we will send reset instructions."
+        footer={
+          <p className="text-center text-sm text-[#464555]">
+            <AuthTextLink to="/login">Back to Login</AuthTextLink>
           </p>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {error && <AuthAlert>{error}</AuthAlert>}
+          {message && <AuthAlert tone="success">{message}</AuthAlert>}
+          {devToken && (
+            <AuthAlert tone="warning">
+              <p className="font-bold">Dev reset token:</p>
+              <p className="mt-1 break-all font-mono text-xs">{devToken}</p>
+              <Link
+                to={`/reset-password?token=${encodeURIComponent(devToken)}`}
+                className="mt-2 inline-block font-bold text-[#3525cd] hover:underline"
+              >
+                Open reset page
+              </Link>
+            </AuthAlert>
+          )}
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
-            )}
-            {message && (
-              <div className="rounded-lg bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{message}</div>
-            )}
-            {devToken && (
-              <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-bold">Dev reset token:</p>
-                <p className="mt-1 break-all font-mono text-xs">{devToken}</p>
-                <Link
-                  to={`/reset-password?token=${encodeURIComponent(devToken)}`}
-                  className="mt-2 inline-block font-bold text-[#3427d9]"
-                >
-                  Open reset page
-                </Link>
-              </div>
-            )}
+          <AuthField label="Email Address" id="email">
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="auth-input"
+              placeholder="name@university.edu"
+            />
+          </AuthField>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-bold text-[#102338]">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="auth-input mt-3"
-                placeholder="name@university.edu"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-12 w-full rounded-lg bg-[#3b2be0] font-bold text-white disabled:opacity-60"
-            >
-              {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm">
-            <Link to="/login" className="font-extrabold text-[#3427d9]">
-              Back to Login
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+          <AuthPrimaryButton disabled={loading}>
+            {loading ? 'Sending...' : 'Send Reset Link'}
+          </AuthPrimaryButton>
+        </form>
+      </AuthFormCard>
+    </AuthSplitLayout>
   )
 }

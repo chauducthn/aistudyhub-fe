@@ -61,6 +61,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     setLoading(true)
+    clearAccessToken()
     try {
       const response = await authApi.login(credentials)
       if (!response.success) {
@@ -75,6 +76,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (payload) => {
     setLoading(true)
+    clearAccessToken()
     try {
       const response = await authApi.register(payload)
       if (!response.success) {

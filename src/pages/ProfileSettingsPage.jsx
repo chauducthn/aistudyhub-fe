@@ -114,7 +114,7 @@ export default function ProfileSettingsPage() {
               {avatarUrl ? (
                 <img src={resolveMediaUrl(avatarUrl)} alt="" className="h-20 w-20 rounded-full object-cover" />
               ) : (
-                <div className="grid h-20 w-20 place-items-center rounded-full bg-[#e8e3ff] text-2xl font-extrabold text-[#3427d9]">
+                <div className="grid h-20 w-20 place-items-center rounded-full bg-[#e8e3ff] text-2xl font-extrabold text-[#3525cd]">
                   {initials}
                 </div>
               )}
@@ -164,7 +164,7 @@ export default function ProfileSettingsPage() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="h-12 rounded-lg bg-[#3b2be0] px-7 font-bold text-white disabled:opacity-60"
+                className="h-12 rounded-xl bg-[#3525cd] px-7 font-bold text-white disabled:opacity-60"
               >
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>
@@ -219,7 +219,7 @@ export default function ProfileSettingsPage() {
               <button
                 type="submit"
                 disabled={savingPassword}
-                className="h-12 rounded-lg bg-[#3b2be0] px-7 font-bold text-white disabled:opacity-60"
+                className="h-12 rounded-xl bg-[#3525cd] px-7 font-bold text-white disabled:opacity-60"
               >
                 {savingPassword ? 'Changing...' : 'Change Password'}
               </button>

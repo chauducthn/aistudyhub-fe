@@ -65,12 +65,12 @@ export default function AdminUsersPage() {
               setSearch(e.target.value)
             }}
             placeholder="Search by name or email..."
-            className="h-12 min-w-[280px] flex-1 rounded-lg border border-slate-200 px-4 font-semibold outline-none focus:border-[#3b2be0]"
+            className="h-12 min-w-[280px] flex-1 rounded-xl border border-[#c7c4d8]/40 bg-[#f8f9ff] px-4 font-semibold outline-none focus:border-[#3525cd]"
           />
           <button
             type="button"
             onClick={() => void loadUsers()}
-            className="h-12 rounded-lg bg-[#3b2be0] px-6 font-bold text-white"
+            className="h-12 rounded-xl bg-[#3525cd] px-6 font-bold text-white"
           >
             Search
           </button>
