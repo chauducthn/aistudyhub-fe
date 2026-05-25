@@ -1,51 +1,51 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as authApi from '../api/authApi'
-import { clearAccessToken, setAccessToken, setUnauthorizedHandler } from '../api/client'
+import {
+  clearAccessToken,
+  setAccessToken,
+  setOnSessionExpired,
+  setOnTokenRefreshed,
+} from '../api/client'
 import AuthContext from './authContextValue'
-
-let sharedRefreshPromise = null
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(true)
 
-  const refreshSession = useCallback(async () => {
-    if (!sharedRefreshPromise) {
-      sharedRefreshPromise = authApi.refresh().finally(() => {
-        setTimeout(() => {
-          sharedRefreshPromise = null
-        }, 100)
-      })
-    }
+  const applyAuthData = useCallback((data) => {
+    setAccessToken(data.accessToken)
+    setUser(data.user)
+  }, [])
 
-    const response = await sharedRefreshPromise
+  const clearSession = useCallback(() => {
+    clearAccessToken()
+    setUser(null)
+  }, [])
+
+  const refreshSession = useCallback(async () => {
+    const response = await authApi.refresh()
     if (!response.success) {
       throw new Error(response.message || 'Session refresh failed')
     }
-
-    setAccessToken(response.data.accessToken)
-    setUser(response.data.user)
+    applyAuthData(response.data)
     return response.data.accessToken
-  }, [])
+  }, [applyAuthData])
 
   useEffect(() => {
-    setUnauthorizedHandler(async () => {
-      try {
-        return await refreshSession()
-      } catch (error) {
-        clearAccessToken()
-        setUser(null)
-        throw error
-      }
+    setOnTokenRefreshed((data) => {
+      applyAuthData(data)
+    })
+
+    setOnSessionExpired(() => {
+      clearSession()
     })
 
     const initializeSession = async () => {
       try {
         await refreshSession()
       } catch {
-        clearAccessToken()
-        setUser(null)
+        clearSession()
       } finally {
         setInitializing(false)
       }
@@ -53,8 +53,11 @@ export function AuthProvider({ children }) {
 
     void initializeSession()
 
-    return () => setUnauthorizedHandler(null)
-  }, [refreshSession])
+    return () => {
+      setOnTokenRefreshed(null)
+      setOnSessionExpired(null)
+    }
+  }, [applyAuthData, clearSession, refreshSession])
 
   const login = useCallback(async (credentials) => {
     setLoading(true)
@@ -63,13 +66,12 @@ export function AuthProvider({ children }) {
       if (!response.success) {
         throw new Error(response.message || 'Login failed')
       }
-      setAccessToken(response.data.accessToken)
-      setUser(response.data.user)
+      applyAuthData(response.data)
       return response.data
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyAuthData])
 
   const register = useCallback(async (payload) => {
     setLoading(true)
@@ -78,22 +80,20 @@ export function AuthProvider({ children }) {
       if (!response.success) {
         throw new Error(response.message || 'Registration failed')
       }
-      setAccessToken(response.data.accessToken)
-      setUser(response.data.user)
+      applyAuthData(response.data)
       return response.data
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyAuthData])
 
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
     } finally {
-      clearAccessToken()
-      setUser(null)
+      clearSession()
     }
-  }, [])
+  }, [clearSession])
 
   const updateProfile = useCallback(async (payload) => {
     const response = await authApi.updateProfile(payload)
@@ -112,6 +112,15 @@ export function AuthProvider({ children }) {
     return response
   }, [])
 
+  const uploadAvatar = useCallback(async (file) => {
+    const response = await authApi.uploadAvatar(file)
+    if (!response.success) {
+      throw new Error(response.message || 'Avatar upload failed')
+    }
+    setUser(response.data)
+    return response.data
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
@@ -123,8 +132,19 @@ export function AuthProvider({ children }) {
       logout,
       updateProfile,
       changePassword,
+      uploadAvatar,
     }),
-    [user, loading, initializing, login, register, logout, updateProfile, changePassword],
+    [
+      user,
+      loading,
+      initializing,
+      login,
+      register,
+      logout,
+      updateProfile,
+      changePassword,
+      uploadAvatar,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
