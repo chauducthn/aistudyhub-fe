@@ -10,6 +10,7 @@ import AuthSplitLayout, {
   AuthTextLink,
 } from '../components/auth/AuthSplitLayout'
 import GoogleSignInButton from '../components/auth/GoogleSignInButton'
+import PasswordInput from '../components/auth/PasswordInput'
 import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
 import { isAdminRole } from '../utils/roles'
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const { login, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
@@ -51,12 +53,12 @@ export default function LoginPage() {
         title="Welcome Back"
         subtitle="Please enter your details to sign in."
         footer={
-          <p className="text-center text-base text-[#464555]">
+          <p className="text-center text-sm text-[#464555]">
             Need an account? <AuthTextLink to="/register">Register</AuthTextLink>
           </p>
         }
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
           {error && <AuthAlert>{error}</AuthAlert>}
 
           <AuthField label="Email Address" id="email">
@@ -73,21 +75,24 @@ export default function LoginPage() {
           </AuthField>
 
           <AuthField label="Password" id="password">
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="auth-input"
               placeholder="••••••••"
             />
           </AuthField>
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 font-semibold text-[#464555]">
-              <input type="checkbox" className="h-4 w-4 rounded accent-[#3525cd]" />
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-4 w-4 rounded accent-[#3525cd]"
+              />
               Remember me
             </label>
             <AuthTextLink to="/forgot-password">Forgot password?</AuthTextLink>
@@ -99,13 +104,17 @@ export default function LoginPage() {
         </form>
       </AuthFormCard>
 
-      <div className="mt-8">
-        <p className="text-center text-sm font-semibold text-[#74798a]">Or continue with</p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-7">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-xs font-bold uppercase tracking-wide text-[#74798a]">
+          <span className="h-px bg-[#c7c4d8]/50" />
+          Or continue with
+          <span className="h-px bg-[#c7c4d8]/50" />
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
           <GoogleSignInButton label="Google" />
           <button
             type="button"
-            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#c7c4d8]/50 bg-white text-sm font-semibold text-[#464555] shadow-sm hover:bg-[#f8f9ff]"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#c7c4d8]/50 bg-white text-sm font-semibold text-[#464555] shadow-sm transition hover:bg-[#f8f9ff]"
           >
             <KeyRound className="h-4 w-4" aria-hidden />
             SSO Login

@@ -15,9 +15,9 @@ export default function AuthSplitLayout({
   const isRegister = variant === 'register'
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-2">
+    <div className="grid min-h-screen bg-white lg:h-screen lg:min-h-0 lg:grid-cols-2 lg:overflow-hidden">
       <section
-        className={`relative hidden overflow-hidden px-10 py-10 lg:flex lg:flex-col ${
+        className={`relative hidden overflow-hidden px-10 py-8 lg:flex lg:flex-col xl:py-10 ${
           isRegister
             ? 'bg-[#3525cd] text-white'
             : 'bg-gradient-to-br from-[#eaf0ff] via-[#f4f7ff] to-white text-[#0b1c30]'
@@ -32,10 +32,12 @@ export default function AuthSplitLayout({
 
         <BrandLogo light={isRegister} className="relative z-10" />
 
-        <div className="relative z-10 mt-12 max-w-[520px] xl:mt-14">
+        <div className="relative z-10 mt-6 max-w-[520px] xl:mt-10">
           <h1
             className={`font-extrabold leading-[1.15] tracking-tight ${
-              isRegister ? 'text-[40px] xl:text-[44px]' : 'text-[38px] xl:text-[42px]'
+              isRegister
+                ? 'text-[32px] xl:text-[40px] 2xl:text-[44px]'
+                : 'text-[32px] xl:text-[38px] 2xl:text-[42px]'
             }`}
             style={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}
           >
@@ -43,7 +45,7 @@ export default function AuthSplitLayout({
           </h1>
           {heroSubtitle && (
             <p
-              className={`mt-5 text-lg leading-8 ${
+              className={`mt-4 text-base leading-7 xl:text-lg xl:leading-8 ${
                 isRegister ? 'text-indigo-100' : 'text-[#464555]'
               }`}
             >
@@ -51,9 +53,9 @@ export default function AuthSplitLayout({
             </p>
           )}
           {heroList.length > 0 && (
-            <ul className="mt-10 space-y-6">
+            <ul className="mt-6 space-y-3 xl:mt-8 xl:space-y-4">
               {heroList.map(({ text, icon: Icon }) => (
-                <li key={text} className="flex items-center gap-4 text-base font-semibold text-white">
+                <li key={text} className="flex items-center gap-4 text-sm font-semibold text-white xl:text-base">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/15">
                     <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
                   </span>
@@ -65,18 +67,28 @@ export default function AuthSplitLayout({
         </div>
 
         {heroImage && (
-          <div className={`relative z-10 mt-auto ${isRegister ? 'pt-8' : 'pt-6'}`}>
-            {isRegister ? (
-              <div className="rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl">
-                <div className="overflow-hidden rounded-xl">
-                  <img src={heroImage} alt={heroImageAlt} className="h-auto w-full object-cover" />
+          <div className="relative z-10 mt-auto flex min-h-0 flex-col pt-4">
+            <div className="flex min-h-0 flex-1 items-end justify-center">
+              {isRegister ? (
+                <div className="w-full max-w-[420px] rounded-2xl border border-white/20 bg-white/10 p-3 shadow-2xl">
+                  <div className="overflow-hidden rounded-xl">
+                    <img
+                      src={heroImage}
+                      alt={heroImageAlt}
+                      className="mx-auto block h-auto max-h-[34vh] w-full object-contain"
+                    />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <img src={heroImage} alt={heroImageAlt} className="mx-auto w-full max-w-[480px] rounded-2xl" />
-            )}
+              ) : (
+                <img
+                  src={heroImage}
+                  alt={heroImageAlt}
+                  className="mx-auto block h-auto max-h-[40vh] w-full max-w-[440px] rounded-2xl object-contain"
+                />
+              )}
+            </div>
             <p
-              className={`mt-4 text-sm ${
+              className={`mt-3 text-xs xl:text-sm ${
                 isRegister ? 'text-indigo-200/90' : 'font-semibold text-[#74798a]'
               }`}
             >
@@ -86,16 +98,16 @@ export default function AuthSplitLayout({
         )}
       </section>
 
-      <main className="flex flex-col items-center justify-center bg-white px-6 py-10 sm:px-8">
-        <div className="mb-6 w-full max-w-[447px] lg:hidden">
+      <main className="flex flex-col items-center bg-white px-6 py-8 sm:px-8 lg:overflow-y-auto lg:py-10">
+        <div className="mb-6 w-full max-w-[460px] lg:hidden">
           <BrandLogo />
         </div>
 
         {showBackHome && (
-          <div className="mb-4 hidden w-full max-w-[447px] lg:block">
+          <div className="mb-4 hidden w-full max-w-[460px] lg:block">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#464555] hover:text-[#3525cd]"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#464555] transition hover:text-[#3525cd]"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
               Back to Home
@@ -103,7 +115,7 @@ export default function AuthSplitLayout({
           </div>
         )}
 
-        <div className="w-full max-w-[447px]">{children}</div>
+        <div className="my-auto w-full max-w-[460px]">{children}</div>
       </main>
     </div>
   )
@@ -125,13 +137,18 @@ export function AuthFormCard({ title, subtitle, children, footer }) {
   )
 }
 
-export function AuthField({ label, id, children }) {
+export function AuthField({ label, id, children, hint, error }) {
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-bold text-[#0b1c30]">
         {label}
       </label>
       <div className="mt-2">{children}</div>
+      {error ? (
+        <p className="mt-1.5 text-xs font-semibold text-red-600">{error}</p>
+      ) : hint ? (
+        <p className="mt-1.5 text-xs font-medium text-[#74798a]">{hint}</p>
+      ) : null}
     </div>
   )
 }
@@ -141,7 +158,7 @@ export function AuthPrimaryButton({ children, disabled, type = 'submit' }) {
     <button
       type={type}
       disabled={disabled}
-      className="h-12 w-full rounded-xl bg-[#3525cd] text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0] disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {children}
     </button>
