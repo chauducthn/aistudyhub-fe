@@ -32,11 +32,27 @@ export async function getCurrentUser() {
   return data
 }
 
-export async function updateProfile({ fullName, avatarUrl }) {
+export async function updateProfile({ fullName }) {
   const { data } = await apiClient.patch('/users/me', {
     fullName,
-    avatarUrl,
   })
+  return data
+}
+
+export async function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('avatar', file)
+
+  const { data } = await apiClient.patch('/users/me/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return data
+}
+
+export async function deleteAvatar() {
+  const { data } = await apiClient.delete('/users/me/avatar')
   return data
 }
 
