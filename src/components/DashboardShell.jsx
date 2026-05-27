@@ -1,16 +1,21 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
+  BarChart3,
   Bell,
   Bot,
   CloudUpload,
+  FileSearch,
   Files,
   FolderOpen,
+  HardDrive,
   History,
   LayoutDashboard,
+  LineChart,
   LogOut,
   Plus,
   Search,
   Settings,
+  Shield,
   Upload,
   User,
   Users,
@@ -20,16 +25,25 @@ import { useAuth } from '../context/useAuth'
 
 const userNav = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'My Documents', to: '/dashboard', icon: Files },
-  { label: 'Upload', to: '/dashboard', icon: Upload },
-  { label: 'Subjects', to: '/dashboard', icon: FolderOpen },
-  { label: 'AI Chatbot', to: '/dashboard', icon: Bot },
-  { label: 'Chat History', to: '/dashboard', icon: History },
+  { label: 'My Documents', to: '/documents', icon: Files },
+  { label: 'Upload', to: '/upload', icon: Upload },
+  { label: 'Subjects', to: '/subjects', icon: FolderOpen },
+  { label: 'AI Chatbot', to: '/chatbot', icon: Bot },
+  { label: 'Chat History', to: '/chat-history', icon: History },
 ]
 
-const adminNav = [
+const adminMainNav = [
   { label: 'Admin Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'User Management', to: '/admin/users', icon: Users },
+  { label: 'Subject Management', to: '/admin/subjects', icon: FolderOpen },
+  { label: 'Document Moderation', to: '/admin/moderation', icon: Shield },
+  { label: 'All Documents', to: '/admin/documents', icon: FileSearch },
+]
+
+const adminAnalyticsNav = [
+  { label: 'Analytics', to: '/admin/analytics', icon: BarChart3 },
+  { label: 'Storage Usage', to: '/admin/storage', icon: HardDrive },
+  { label: 'Reports', to: '/admin/reports', icon: LineChart },
 ]
 
 function resolveMediaUrl(url) {
@@ -44,7 +58,6 @@ export default function DashboardShell({ type = 'user', children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const isAdmin = type === 'admin'
-  const navItems = isAdmin ? adminNav : userNav
 
   const handleLogout = async () => {
     await logout()
@@ -76,12 +89,10 @@ export default function DashboardShell({ type = 'user', children }) {
         )}
 
         <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">
-          {!isAdmin && (
-            <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-[#74798a]">
-              Main Menu
-            </p>
-          )}
-          {navItems.map((item) => (
+          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-[#74798a]">
+            Main Menu
+          </p>
+          {(isAdmin ? adminMainNav : userNav).map((item) => (
             <NavLink
               key={item.label}
               to={item.to}
@@ -105,6 +116,37 @@ export default function DashboardShell({ type = 'user', children }) {
               )}
             </NavLink>
           ))}
+
+          {isAdmin && (
+            <>
+              <p className="px-3 pb-2 pt-6 text-[10px] font-bold uppercase tracking-wider text-[#74798a]">
+                Analytics
+              </p>
+              {adminAnalyticsNav.map((item) => (
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                      isActive
+                        ? 'bg-[#3525cd]/10 text-[#3525cd]'
+                        : 'text-[#464555] hover:bg-[#eff4ff]'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[#3525cd]" />
+                      )}
+                      <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={2} aria-hidden />
+                      {item.label}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="border-t border-[#c7c4d8]/30 pt-4">
@@ -133,7 +175,11 @@ export default function DashboardShell({ type = 'user', children }) {
               <Search className="h-4 w-4 shrink-0 text-[#74798a]" aria-hidden />
               <input
                 type="search"
-                placeholder="Search documents, subjects, or notes..."
+                placeholder={
+                  isAdmin
+                    ? 'Search users, documents, or subjects...'
+                    : 'Search documents, subjects, or notes...'
+                }
                 className="min-w-0 flex-1 bg-transparent text-sm text-[#0b1c30] outline-none placeholder:text-[#74798a]"
               />
             </div>
