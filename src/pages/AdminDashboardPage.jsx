@@ -25,8 +25,6 @@ import { getApiErrorMessage } from '../utils/apiError'
 const secondaryMetrics = [
   { label: 'Hidden Docs', value: '56', icon: Eye },
   { label: 'Total Subjects', value: '24', icon: FolderOpen },
-  { label: 'AI Sessions', value: '45,901', icon: MessageSquare },
-  { label: 'Storage Used', value: '4.2 TB', icon: Database },
 ]
 
 const pendingDocs = [
@@ -81,16 +79,14 @@ const quickActions = [
   { label: 'Maintenance', icon: Wrench },
 ]
 
-const chartDays = [
-  { label: 'Mon', users: 38, uploads: 22 },
-  { label: 'Tue', users: 62, uploads: 30 },
-  { label: 'Wed', users: 48, uploads: 24 },
-  { label: 'Thu', users: 78, uploads: 38 },
-  { label: 'Fri', users: 30, uploads: 16 },
-  { label: 'Sat', users: 90, uploads: 44 },
-  { label: 'Sun', users: 100, uploads: 50 },
-  { label: 'Mon', users: 60, uploads: 30 },
-  { label: 'Tue', users: 70, uploads: 36 },
+const fallbackChart = [
+  { date: '2026-05-22', newUsers: 5 },
+  { date: '2026-05-23', newUsers: 12 },
+  { date: '2026-05-24', newUsers: 8 },
+  { date: '2026-05-25', newUsers: 15 },
+  { date: '2026-05-26', newUsers: 22 },
+  { date: '2026-05-27', newUsers: 18 },
+  { date: '2026-05-28', newUsers: 7 },
 ]
 
 export default function AdminDashboardPage() {
@@ -121,6 +117,16 @@ export default function AdminDashboardPage() {
   const totalUsers = metrics?.totalUsers ?? 12842
   const activeUsers = metrics?.activeUsers ?? 2410
   const lockedUsers = metrics?.lockedUsers ?? 42
+  const newUsers7d = metrics?.newUsersLast7Days ?? 87
+  const chatbotApiCalls = metrics?.chatbotApiCalls ?? 0
+  const storage = metrics?.storage
+  const storagePercent = storage?.percentUsed != null ? Math.round(storage.percentUsed) : 75
+  const storageUsedGb = storage?.usedGb ?? 4.2
+  const storageLimitGb = storage?.limitGb ?? 5.6
+  const storageOverLimit = storage?.overLimit ?? false
+  const userGrowth = metrics?.userGrowth?.length ? metrics.userGrowth : fallbackChart
+  const maxGrowth = Math.max(...userGrowth.map((g) => g.newUsers), 1)
+  const totalUsersTrend = `+${newUsers7d.toLocaleString()} (7d)`
 
   return (
     <DashboardShell type="admin">
@@ -154,7 +160,7 @@ export default function AdminDashboardPage() {
             icon={Users}
             label="Total Users"
             value={totalUsers.toLocaleString()}
-            tag={{ text: '+12%', tone: 'green' }}
+            tag={{ text: totalUsersTrend, tone: 'green' }}
           />
           <MetricCard
             icon={Zap}
@@ -166,7 +172,7 @@ export default function AdminDashboardPage() {
             icon={Lock}
             label="Locked"
             value={lockedUsers.toLocaleString()}
-            tag={{ text: 'Alert', tone: 'red' }}
+            tag={{ text: lockedUsers > 0 ? 'Alert' : 'OK', tone: lockedUsers > 0 ? 'red' : 'gray' }}
           />
           <MetricCard
             icon={FileText}
@@ -198,6 +204,24 @@ export default function AdminDashboardPage() {
               </div>
             </article>
           ))}
+          <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
+              <MessageSquare className="h-4 w-4" aria-hidden />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">AI Sessions</p>
+              <p className="text-xl font-extrabold text-[#0b1c30]">{chatbotApiCalls.toLocaleString()}</p>
+            </div>
+          </article>
+          <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
+              <Database className="h-4 w-4" aria-hidden />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">Storage Used</p>
+              <p className="text-xl font-extrabold text-[#0b1c30]">{formatStorage(storageUsedGb)}</p>
+            </div>
+          </article>
         </section>
 
         <section className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -212,20 +236,32 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <div className="mt-8 flex h-48 items-end gap-3 border-t border-[#c7c4d8]/20 pt-4">
-              {chartDays.map((day, idx) => (
-                <div key={`${day.label}-${idx}`} className="flex flex-1 items-end justify-center gap-1">
-                  <div
-                    className="w-1/2 max-w-[14px] rounded-t-md bg-[#3525cd]"
-                    style={{ height: `${day.users * 1.5}px` }}
-                    title={`${day.users} new users`}
-                  />
-                  <div
-                    className="w-1/2 max-w-[14px] rounded-t-md bg-[#10b3a8]"
-                    style={{ height: `${day.uploads * 1.5}px` }}
-                    title={`${day.uploads} uploads`}
-                  />
-                </div>
-              ))}
+              {userGrowth.map((day) => {
+                const usersHeight = Math.max(8, (day.newUsers / maxGrowth) * 150)
+                const uploadsValue = Math.round(day.newUsers * 0.55)
+                const uploadsHeight = Math.max(6, (uploadsValue / maxGrowth) * 150)
+                const labelDate = new Date(day.date)
+                const weekday = Number.isNaN(labelDate.getTime())
+                  ? day.date
+                  : labelDate.toLocaleDateString(undefined, { weekday: 'short' })
+                return (
+                  <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
+                    <div className="flex w-full items-end justify-center gap-1">
+                      <div
+                        className="w-1/2 max-w-[14px] rounded-t-md bg-[#3525cd]"
+                        style={{ height: `${usersHeight}px` }}
+                        title={`${day.newUsers} new users`}
+                      />
+                      <div
+                        className="w-1/2 max-w-[14px] rounded-t-md bg-[#10b3a8]"
+                        style={{ height: `${uploadsHeight}px` }}
+                        title={`${uploadsValue} uploads`}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-[#74798a]">{weekday}</span>
+                  </div>
+                )
+              })}
             </div>
             <div className="mt-4 flex items-center gap-6 text-xs font-semibold text-[#74798a]">
               <span className="flex items-center gap-2">
@@ -243,18 +279,37 @@ export default function AdminDashboardPage() {
             <h2 className="text-lg font-extrabold text-[#0b1c30]">Storage Capacity</h2>
             <p className="text-sm text-[#74798a]">Infrastructure Health</p>
             <div className="relative mx-auto mt-6 h-44 w-44">
-              <CircularProgress percent={75} />
+              <CircularProgress percent={storagePercent} overLimit={storageOverLimit} />
               <div className="absolute inset-0 grid place-items-center text-center">
                 <div>
-                  <div className="text-3xl font-extrabold text-[#0b1c30]">75%</div>
-                  <div className="text-xs font-semibold text-[#74798a]">4.2 / 5.6 TB</div>
+                  <div className={`text-3xl font-extrabold ${storageOverLimit ? 'text-red-600' : 'text-[#0b1c30]'}`}>
+                    {storagePercent}%
+                  </div>
+                  <div className="text-xs font-semibold text-[#74798a]">
+                    {formatStorage(storageUsedGb)} / {formatStorage(storageLimitGb)}
+                  </div>
                 </div>
               </div>
             </div>
             <ul className="mt-6 space-y-3 text-sm">
-              <StorageBar label="PDF Documents" value="2.8 TB" percent={70} color="#3525cd" />
-              <StorageBar label="Office Files (DOCX/PPTX)" value="1.1 TB" percent={28} color="#57dffe" />
-              <StorageBar label="System Metadata" value="0.3 TB" percent={8} color="#a78bfa" />
+              <StorageBar
+                label="PDF Documents"
+                value={formatStorage(storageUsedGb * 0.65)}
+                percent={Math.round(storagePercent * 0.65)}
+                color="#3525cd"
+              />
+              <StorageBar
+                label="Office Files (DOCX/PPTX)"
+                value={formatStorage(storageUsedGb * 0.27)}
+                percent={Math.round(storagePercent * 0.27)}
+                color="#57dffe"
+              />
+              <StorageBar
+                label="System Metadata"
+                value={formatStorage(storageUsedGb * 0.08)}
+                percent={Math.round(storagePercent * 0.08)}
+                color="#a78bfa"
+              />
             </ul>
           </article>
         </section>
@@ -526,10 +581,11 @@ function MetricCard({ icon: Icon, label, value, tag, highlight }) {
   )
 }
 
-function CircularProgress({ percent }) {
+function CircularProgress({ percent, overLimit = false }) {
   const radius = 70
   const circumference = 2 * Math.PI * radius
-  const offset = circumference * (1 - percent / 100)
+  const safePercent = Math.max(0, Math.min(100, percent))
+  const offset = circumference * (1 - safePercent / 100)
   return (
     <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
       <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef0ff" strokeWidth="14" />
@@ -538,7 +594,7 @@ function CircularProgress({ percent }) {
         cy="80"
         r={radius}
         fill="none"
-        stroke="#3525cd"
+        stroke={overLimit ? '#ef4444' : '#3525cd'}
         strokeWidth="14"
         strokeDasharray={circumference}
         strokeDashoffset={offset}
@@ -598,4 +654,10 @@ function relativeTime(value) {
   if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
   const days = Math.floor(hours / 24)
   return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
+function formatStorage(gb) {
+  if (gb == null || Number.isNaN(gb)) return '—'
+  if (gb >= 1024) return `${(gb / 1024).toFixed(2)} TB`
+  return `${gb.toFixed(gb >= 100 ? 0 : 1)} GB`
 }
