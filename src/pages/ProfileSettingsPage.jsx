@@ -4,6 +4,14 @@ import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
 import { isAdminRole } from '../utils/roles'
 
+function resolveMediaUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8081/api'
+  const origin = apiBase.replace(/\/api\/?$/, '')
+  return `${origin}${url.startsWith('/') ? url : `/${url}`}`
+}
+
 export default function ProfileSettingsPage() {
   const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword } = useAuth()
   const [avatarFile, setAvatarFile] = useState(null)
@@ -120,7 +128,7 @@ export default function ProfileSettingsPage() {
     .join('')
     .slice(0, 2)
     .toUpperCase()
-  const displayedAvatar = avatarPreview || user?.avatarUrl || ''
+  const displayedAvatar = avatarPreview || resolveMediaUrl(user?.avatarUrl)
 
   return (
     <DashboardShell type={isAdminRole(user?.role) ? 'admin' : 'user'}>

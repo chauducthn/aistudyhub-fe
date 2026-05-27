@@ -23,20 +23,21 @@ input {
 .auth-input {
   height: 48px;
   width: 100%;
-  border-radius: 8px;
-  border: 0;
-  background: #edf2fa;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: #eff4ff;
   padding: 0 16px;
-  color: #102338;
+  color: #0b1c30;
   outline: none;
-  transition: box-shadow 160ms ease, background-color 160ms ease;
+  transition: box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
 
 .auth-input::placeholder {
-  color: #7d8495;
+  color: #74798a;
 }
 
 .auth-input:focus {
-  background: #f3f6fb;
-  box-shadow: 0 0 0 3px rgba(59, 43, 224, 0.16);
+  background: #fff;
+  border-color: #c7c4d8;
+  box-shadow: 0 0 0 3px rgba(53, 37, 205, 0.14);
 }

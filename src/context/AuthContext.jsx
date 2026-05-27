@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as authApi from '../api/authApi'
-import { clearAccessToken, setAccessToken, setUnauthorizedHandler } from '../api/client'
+import {
+  clearAccessToken,
+  setAccessToken,
+  setOnSessionExpired,
+  setOnTokenRefreshed,
+} from '../api/client'
 import AuthContext from './authContextValue'
 
-let sharedRefreshPromise = null
 const SESSION_STORAGE_KEY = 'studyhub.auth.session'
+const DEFAULT_SESSION_TTL_SECONDS = 15 * 60
 
 function readStoredSession() {
   try {
@@ -32,7 +37,9 @@ function restoreStoredSession() {
   return session
 }
 
-function persistSession({ accessToken, expiresIn, user }) {
+function persistSession({ accessToken, expiresIn = DEFAULT_SESSION_TTL_SECONDS, user }) {
+  if (!accessToken || !user) return
+
   const session = {
     accessToken,
     user,
@@ -57,45 +64,42 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(!initialSession)
 
-  const refreshSession = useCallback(async () => {
-    if (!sharedRefreshPromise) {
-      sharedRefreshPromise = authApi.refresh().finally(() => {
-        setTimeout(() => {
-          sharedRefreshPromise = null
-        }, 100)
-      })
-    }
+  const applyAuthData = useCallback((data) => {
+    setAccessToken(data.accessToken)
+    setUser(data.user)
+    persistSession(data)
+  }, [])
 
-    const response = await sharedRefreshPromise
+  const clearSession = useCallback(() => {
+    clearAccessToken()
+    clearStoredSession()
+    setUser(null)
+  }, [])
+
+  const refreshSession = useCallback(async () => {
+    const response = await authApi.refresh()
     if (!response.success) {
       throw new Error(response.message || 'Session refresh failed')
     }
 
-    setAccessToken(response.data.accessToken)
-    setUser(response.data.user)
-    persistSession(response.data)
+    applyAuthData(response.data)
     return response.data.accessToken
-  }, [])
+  }, [applyAuthData])
 
   useEffect(() => {
-    setUnauthorizedHandler(async () => {
-      try {
-        return await refreshSession()
-      } catch (error) {
-        clearAccessToken()
-        clearStoredSession()
-        setUser(null)
-        throw error
-      }
+    setOnTokenRefreshed((data) => {
+      applyAuthData(data)
+    })
+
+    setOnSessionExpired(() => {
+      clearSession()
     })
 
     const initializeSession = async () => {
       try {
         await refreshSession()
       } catch {
-        clearAccessToken()
-        clearStoredSession()
-        setUser(null)
+        clearSession()
       } finally {
         setInitializing(false)
       }
@@ -105,9 +109,7 @@ export function AuthProvider({ children }) {
       try {
         await refreshSession()
       } catch {
-        clearAccessToken()
-        clearStoredSession()
-        setUser(null)
+        clearSession()
       }
     }
 
@@ -117,50 +119,49 @@ export function AuthProvider({ children }) {
       void initializeSession()
     }
 
-    return () => setUnauthorizedHandler(null)
-  }, [initialSession, refreshSession])
+    return () => {
+      setOnTokenRefreshed(null)
+      setOnSessionExpired(null)
+    }
+  }, [applyAuthData, clearSession, initialSession, refreshSession])
 
   const login = useCallback(async (credentials) => {
     setLoading(true)
+    clearAccessToken()
     try {
       const response = await authApi.login(credentials)
       if (!response.success) {
         throw new Error(response.message || 'Login failed')
       }
-      setAccessToken(response.data.accessToken)
-      setUser(response.data.user)
-      persistSession(response.data)
+      applyAuthData(response.data)
       return response.data
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyAuthData])
 
   const register = useCallback(async (payload) => {
     setLoading(true)
+    clearAccessToken()
     try {
       const response = await authApi.register(payload)
       if (!response.success) {
         throw new Error(response.message || 'Registration failed')
       }
-      setAccessToken(response.data.accessToken)
-      setUser(response.data.user)
-      persistSession(response.data)
+      applyAuthData(response.data)
       return response.data
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyAuthData])
 
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
     } finally {
-      clearAccessToken()
-      clearStoredSession()
-      setUser(null)
+      clearSession()
     }
-  }, [])
+  }, [clearSession])
 
   const updateProfile = useCallback(async (payload) => {
     const response = await authApi.updateProfile(payload)
@@ -214,7 +215,18 @@ export function AuthProvider({ children }) {
       deleteAvatar,
       changePassword,
     }),
-    [user, loading, initializing, login, register, logout, updateProfile, uploadAvatar, deleteAvatar, changePassword],
+    [
+      user,
+      loading,
+      initializing,
+      login,
+      register,
+      logout,
+      updateProfile,
+      uploadAvatar,
+      deleteAvatar,
+      changePassword,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
