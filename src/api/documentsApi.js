@@ -1,9 +1,5 @@
-/**
- * MOCK API for documents.
- * Khi BE có endpoint thật, đổi `USE_MOCK = false` và uncomment code apiClient bên dưới.
- */
 
-// import apiClient from './client'
+import { listSubjects as listSubjectsImpl } from './subjectsApi'
 
 const USE_MOCK = true
 
@@ -15,6 +11,8 @@ const MOCK_SUBJECTS = [
   { id: 'sub-5', name: 'Physics', code: 'PHY' },
   { id: 'sub-6', name: 'Mathematics', code: 'MATH' },
 ]
+// kept for fallback when subjects API is offline; primary source is subjectsApi.
+void MOCK_SUBJECTS
 
 const MOCK_DOCUMENTS = [
   {
@@ -182,12 +180,7 @@ function delay(ms) {
 }
 
 export async function listSubjects() {
-  if (USE_MOCK) {
-    await delay(180)
-    return { success: true, data: MOCK_SUBJECTS, message: null }
-  }
-  // const { data } = await apiClient.get('/subjects')
-  // return data
+  return listSubjectsImpl()
 }
 
 export async function getDocument(id) {

@@ -12,6 +12,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import ProfileSettingsPage from './pages/ProfileSettingsPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import SubjectsPage from './pages/SubjectsPage'
 import UploadDocumentPage from './pages/UploadDocumentPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import { ROLES } from './utils/roles'
@@ -61,6 +62,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <EditDocumentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subjects"
+            element={
+              <ProtectedRoute>
+                <SubjectsPage />
               </ProtectedRoute>
             }
           />
