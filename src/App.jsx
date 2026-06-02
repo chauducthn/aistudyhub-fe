@@ -10,6 +10,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import ProfileSettingsPage from './pages/ProfileSettingsPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import UploadDocumentPage from './pages/UploadDocumentPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import { ROLES } from './utils/roles'
 
@@ -36,6 +37,15 @@ export default function App() {
             }
           />
           <Route path="/student/dashboard" element={<Navigate to="/dashboard" replace />} />
+
+          <Route
+            path="/upload"
+            element={
+              <ProtectedRoute>
+                <UploadDocumentPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/admin/dashboard"
