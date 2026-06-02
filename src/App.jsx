@@ -6,6 +6,7 @@ import AdminUsersPage from './pages/AdminUsersPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import MyDocumentsPage from './pages/MyDocumentsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfileSettingsPage from './pages/ProfileSettingsPage'
 import RegisterPage from './pages/RegisterPage'
@@ -43,6 +44,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <UploadDocumentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents"
+            element={
+              <ProtectedRoute>
+                <MyDocumentsPage />
               </ProtectedRoute>
             }
           />
