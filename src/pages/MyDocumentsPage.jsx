@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import DocumentEditForm from '../components/documents/DocumentEditForm'
 import {
   deleteDocument,
   downloadDocument,
@@ -186,7 +187,16 @@ export default function MyDocumentsPage() {
       setEditing(null)
       await refresh()
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not update document.'))
+      const status = err.response?.status
+      if (status === 403) {
+        setError(err.response?.data?.message || 'You do not have permission to edit this document.')
+      } else if (status === 404) {
+        setError('This document no longer exists.')
+        setEditing(null)
+        await refresh()
+      } else {
+        setError(getApiErrorMessage(err, 'Could not update document.'))
+      }
     } finally {
       setBusyId(null)
     }
@@ -559,115 +569,31 @@ function ActionIconButton({ children, label, onClick, disabled, tone = 'default'
 }
 
 function EditDocumentModal({ doc, subjects, onClose, onSave, saving }) {
-  const [title, setTitle] = useState(doc.title)
-  const [description, setDescription] = useState(doc.description || '')
-  const [subjectId, setSubjectId] = useState(doc.subjectId)
-  const [visibility, setVisibility] = useState(doc.visibility)
-  const [error, setError] = useState('')
-
-  const submit = async (e) => {
-    e.preventDefault()
-    setError('')
-    if (!title.trim()) return setError('Title is required.')
-    if (!subjectId) return setError('Please select a subject.')
-    onSave({ title: title.trim(), description: description.trim(), subjectId, visibility })
-  }
-
   return (
     <Modal onClose={onClose}>
-      <form onSubmit={submit} className="space-y-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-extrabold text-[#0b1c30]">Edit Document</h2>
-            <p className="mt-1 text-sm text-[#74798a]">{doc.fileName}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-lg text-[#464555] hover:bg-[#eff4ff]"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#0b1c30]">Edit Document</h2>
+          <p className="mt-1 text-sm text-[#74798a]">{doc.fileName}</p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="grid h-9 w-9 place-items-center rounded-lg text-[#464555] hover:bg-[#eff4ff]"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
 
-        {error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>
-        )}
-
-        <ModalField label="Title" required>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="auth-input"
-          />
-        </ModalField>
-
-        <ModalField label="Description">
-          <textarea
-            rows={4}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="auth-input min-h-[100px] resize-y py-3"
-          />
-        </ModalField>
-
-        <ModalField label="Subject" required>
-          <select
-            value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
-            className="auth-input"
-          >
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </ModalField>
-
-        <ModalField label="Visibility">
-          <div className="grid grid-cols-2 gap-2">
-            {['PRIVATE', 'PUBLIC'].map((opt) => {
-              const active = visibility === opt
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setVisibility(opt)}
-                  className={`flex h-12 items-center justify-center gap-2 rounded-xl border-2 text-sm font-bold transition ${
-                    active
-                      ? 'border-[#3525cd] bg-[#eef0ff] text-[#3525cd]'
-                      : 'border-[#c7c4d8]/40 bg-white text-[#464555] hover:border-[#3525cd]/30'
-                  }`}
-                >
-                  {opt === 'PUBLIC' ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  {opt === 'PUBLIC' ? 'Public' : 'Private'}
-                </button>
-              )
-            })}
-          </div>
-        </ModalField>
-
-        <div className="flex justify-end gap-3 border-t border-[#c7c4d8]/30 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-11 items-center rounded-xl border border-[#c7c4d8]/40 bg-white px-5 text-sm font-bold text-[#0b1c30] transition hover:bg-[#eff4ff]"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white transition hover:bg-[#2d1fb0] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Changes
-          </button>
-        </div>
-      </form>
+      <DocumentEditForm
+        doc={doc}
+        subjects={subjects}
+        saving={saving}
+        onSubmit={onSave}
+        onCancel={onClose}
+        layout="modal"
+      />
     </Modal>
   )
 }
@@ -733,17 +659,5 @@ function Modal({ children, onClose, maxWidth = 'max-w-lg' }) {
         {children}
       </div>
     </div>
-  )
-}
-
-function ModalField({ label, required, children }) {
-  return (
-    <label className="block">
-      <span className="mb-2 flex items-center gap-1 text-sm font-bold text-[#0b1c30]">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </span>
-      {children}
-    </label>
   )
 }

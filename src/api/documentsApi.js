@@ -190,6 +190,26 @@ export async function listSubjects() {
   // return data
 }
 
+export async function getDocument(id) {
+  if (USE_MOCK) {
+    await delay(220)
+    if (id && id.startsWith('forbidden')) {
+      const error = new Error('Forbidden')
+      error.response = { status: 403, data: { success: false, message: 'You do not have permission to edit this document.' } }
+      throw error
+    }
+    const doc = documentsStore.find((d) => d.id === id)
+    if (!doc) {
+      const error = new Error('Not Found')
+      error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
+      throw error
+    }
+    return { success: true, message: null, data: doc }
+  }
+  // const { data } = await apiClient.get(`/documents/${id}`)
+  // return data
+}
+
 /**
  * @param {object} params
  * @param {string} [params.search]      - keyword search on title/description/fileName
@@ -278,16 +298,24 @@ export async function uploadDocument(payload, onProgress) {
 
 export async function updateDocument(id, payload) {
   if (USE_MOCK) {
-    await delay(220)
-    let updated = null
-    documentsStore = documentsStore.map((doc) => {
-      if (doc.id !== id) return doc
-      updated = { ...doc, ...payload }
-      return updated
-    })
-    if (!updated) {
-      return { success: false, message: 'Document not found.', data: null }
+    await delay(260)
+    if (id && id.startsWith('forbidden')) {
+      const error = new Error('Forbidden')
+      error.response = { status: 403, data: { success: false, message: 'You do not have permission to edit this document.' } }
+      throw error
     }
+    const idx = documentsStore.findIndex((d) => d.id === id)
+    if (idx === -1) {
+      const error = new Error('Not Found')
+      error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
+      throw error
+    }
+    const updated = { ...documentsStore[idx], ...payload }
+    documentsStore = [
+      ...documentsStore.slice(0, idx),
+      updated,
+      ...documentsStore.slice(idx + 1),
+    ]
     return { success: true, message: 'Document updated.', data: updated }
   }
   // const { data } = await apiClient.patch(`/documents/${id}`, payload)

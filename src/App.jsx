@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminUsersPage from './pages/AdminUsersPage'
+import EditDocumentPage from './pages/EditDocumentPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -52,6 +53,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <MyDocumentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditDocumentPage />
               </ProtectedRoute>
             }
           />
