@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -62,6 +62,7 @@ const fileTypeStyle = {
 }
 
 export default function MyDocumentsPage() {
+  const navigate = useNavigate()
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [subjectId, setSubjectId] = useState('')
@@ -410,6 +411,13 @@ export default function MyDocumentsPage() {
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatDate(doc.uploadedAt)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-1.5">
+                          <ActionIconButton
+                            label="Preview"
+                            onClick={() => navigate(`/documents/${doc.id}`)}
+                            disabled={busyId === doc.id}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </ActionIconButton>
                           <ActionIconButton
                             label="Download"
                             onClick={() => handleDownload(doc)}

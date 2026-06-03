@@ -87,8 +87,6 @@ export async function listSubjects(params = {}) {
     data.sort((a, b) => a.name.localeCompare(b.name))
     return { success: true, data, message: null }
   }
-  // const { data } = await apiClient.get('/subjects', { params })
-  // return data
 }
 
 export async function createSubject(payload) {
@@ -120,8 +118,6 @@ export async function createSubject(payload) {
     subjectsStore = [...subjectsStore, next]
     return { success: true, data: next, message: 'Subject created.' }
   }
-  // const { data } = await apiClient.post('/subjects', payload)
-  // return data
 }
 
 export async function updateSubject(id, payload) {
@@ -158,8 +154,6 @@ export async function updateSubject(id, payload) {
     ]
     return { success: true, data: updated, message: 'Subject updated.' }
   }
-  // const { data } = await apiClient.patch(`/subjects/${id}`, payload)
-  // return data
 }
 
 export async function deleteSubject(id) {
@@ -178,6 +172,4 @@ export async function deleteSubject(id) {
     subjectsStore = subjectsStore.filter((s) => s.id !== id)
     return { success: true, data: { id }, message: 'Subject deleted.' }
   }
-  // const { data } = await apiClient.delete(`/subjects/${id}`)
-  // return data
 }

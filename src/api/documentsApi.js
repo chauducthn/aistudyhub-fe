@@ -11,7 +11,6 @@ const MOCK_SUBJECTS = [
   { id: 'sub-5', name: 'Physics', code: 'PHY' },
   { id: 'sub-6', name: 'Mathematics', code: 'MATH' },
 ]
-// kept for fallback when subjects API is offline; primary source is subjectsApi.
 void MOCK_SUBJECTS
 
 const MOCK_DOCUMENTS = [
@@ -197,21 +196,78 @@ export async function getDocument(id) {
       error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
       throw error
     }
-    return { success: true, message: null, data: doc }
+    const owner = {
+      id: 'me',
+      fullName: 'Alex Chen',
+      email: 'alex.chen@university.edu',
+    }
+    return { success: true, message: null, data: { ...doc, owner } }
   }
-  // const { data } = await apiClient.get(`/documents/${id}`)
-  // return data
 }
 
-/**
- * @param {object} params
- * @param {string} [params.search]      - keyword search on title/description/fileName
- * @param {string} [params.subjectId]   - filter by subject
- * @param {string} [params.status]      - 'ALL' | 'APPROVED' | 'PENDING' | 'REJECTED'
- * @param {string} [params.visibility]  - 'ALL' | 'PUBLIC' | 'PRIVATE'
- * @param {number} [params.page=0]
- * @param {number} [params.size=10]
- */
+const PDF_PREVIEW_URLS = {
+  pdf: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
+}
+
+const TXT_PREVIEW_TEXT = `# Sample Preview
+
+This is a generated preview for demonstration. When the real backend is available,
+this content will come from the document's stored text or a server-rendered preview.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, sapien id
+consequat ullamcorper, lectus libero efficitur urna, ut volutpat odio mauris non
+lectus. Suspendisse potenti.
+
+- Bullet point one
+- Bullet point two
+- Bullet point three
+
+Section 1: Overview
+Section 2: Methodology
+Section 3: Results
+Section 4: Discussion
+Section 5: References`
+
+export async function getDocumentPreview(id) {
+  if (USE_MOCK) {
+    await delay(320)
+    const doc = documentsStore.find((d) => d.id === id)
+    if (!doc) {
+      const error = new Error('Not Found')
+      error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
+      throw error
+    }
+    const ext = (doc.fileType || '').toLowerCase()
+    if (ext === 'pdf') {
+      return {
+        success: true,
+        data: {
+          type: 'pdf',
+          previewUrl: PDF_PREVIEW_URLS.pdf,
+          fileName: doc.fileName,
+        },
+        message: null,
+      }
+    }
+    if (ext === 'txt') {
+      return {
+        success: true,
+        data: {
+          type: 'text',
+          textContent: TXT_PREVIEW_TEXT,
+          fileName: doc.fileName,
+        },
+        message: null,
+      }
+    }
+    return {
+      success: false,
+      data: null,
+      message: `Inline preview is not available for ${ext.toUpperCase()} files. Download to view.`,
+    }
+  }
+}
+
 export async function listMyDocuments(params = {}) {
   if (USE_MOCK) {
     await delay(220)
@@ -244,13 +300,8 @@ export async function listMyDocuments(params = {}) {
       message: null,
     }
   }
-  // const { data } = await apiClient.get('/documents/me', { params })
-  // return data
 }
 
-/**
- * Upload document with progress callback.
- */
 export async function uploadDocument(payload, onProgress) {
   if (USE_MOCK) {
     for (let percent = 0; percent <= 100; percent += 10) {
@@ -275,18 +326,6 @@ export async function uploadDocument(payload, onProgress) {
     return { success: true, message: 'Document uploaded.', data: newDoc }
   }
 
-  // const formData = new FormData()
-  // formData.append('title', payload.title)
-  // formData.append('description', payload.description)
-  // formData.append('subjectId', payload.subjectId)
-  // formData.append('file', payload.file)
-  // const { data } = await apiClient.post('/documents', formData, {
-  //   headers: { 'Content-Type': 'multipart/form-data' },
-  //   onUploadProgress: (event) => {
-  //     if (event.total) onProgress?.(Math.round((event.loaded * 100) / event.total))
-  //   },
-  // })
-  // return data
 }
 
 export async function updateDocument(id, payload) {
@@ -311,8 +350,6 @@ export async function updateDocument(id, payload) {
     ]
     return { success: true, message: 'Document updated.', data: updated }
   }
-  // const { data } = await apiClient.patch(`/documents/${id}`, payload)
-  // return data
 }
 
 export async function deleteDocument(id) {
@@ -325,8 +362,6 @@ export async function deleteDocument(id) {
     }
     return { success: true, message: 'Document deleted.', data: { id } }
   }
-  // const { data } = await apiClient.delete(`/documents/${id}`)
-  // return data
 }
 
 export async function toggleDocumentVisibility(id) {
@@ -337,14 +372,8 @@ export async function toggleDocumentVisibility(id) {
     const next = doc.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
     return updateDocument(id, { visibility: next })
   }
-  // const { data } = await apiClient.patch(`/documents/${id}/visibility`)
-  // return data
 }
 
-/**
- * Mock download: open file in new tab if real URL, otherwise just no-op.
- * Khi BE sẵn, replace bằng axios responseType blob + saveAs.
- */
 export function downloadDocument(doc) {
   if (USE_MOCK) {
     if (doc?.downloadUrl && doc.downloadUrl !== '#') {
@@ -352,6 +381,4 @@ export function downloadDocument(doc) {
     }
     return Promise.resolve({ success: true, data: { id: doc?.id } })
   }
-  // const { data } = await apiClient.get(`/documents/${doc.id}/download`, { responseType: 'blob' })
-  // ...trigger browser download with `data`
 }
