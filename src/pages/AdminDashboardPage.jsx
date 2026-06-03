@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
-  Ban,
   CheckCircle2,
   Database,
   Eye,
@@ -22,33 +21,6 @@ import { useAuth } from '../context/useAuth'
 import { getDashboardMetrics, listUsers } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
-const secondaryMetrics = [
-  { label: 'Hidden Docs', value: '56', icon: Eye },
-  { label: 'Total Subjects', value: '24', icon: FolderOpen },
-]
-
-const pendingDocs = [
-  {
-    title: 'Deep Learning Notes',
-    meta: 'PDF · 42 Pages',
-    user: 'Alex Rivera',
-    subject: 'AI',
-    size: '12.4 MB',
-    date: 'Oct 24, 2023',
-    status: 'High Report Count',
-    statusTone: 'red',
-  },
-  {
-    title: 'SQL Optimization Guide',
-    meta: 'DOCX · 12 Pages',
-    user: 'Sarah Jenkins',
-    subject: 'Databases',
-    size: '2.1 MB',
-    date: 'Oct 25, 2023',
-    status: 'Pending Review',
-    statusTone: 'violet',
-  },
-]
 
 const fallbackUsers = [
   { id: 'u1', initials: 'JD', fullName: 'John Doe', email: 'john.d@university.edu', role: 'Student', status: 'Active', joined: '2h ago' },
@@ -58,18 +30,6 @@ const fallbackUsers = [
   { id: 'u5', initials: 'ER', fullName: 'Elena Rodriguez', email: 'elena.rod@global.ai', role: 'Admin', status: 'Active', joined: 'Just now' },
   { id: 'u6', initials: 'AR', fullName: 'Alex Rivers', email: 'alex.rivers@university.edu', role: 'Student', status: 'Active', joined: '1h ago' },
   { id: 'u7', initials: 'MB', fullName: 'Michael Brown', email: 'm.brown@oxford.edu', role: 'Student', status: 'Active', joined: '3h ago' },
-]
-
-const subjectActivity = [
-  { name: 'Software Eng.', docs: '1.2k docs', tag: '</>' },
-  { name: 'Database Systems', docs: '842 docs', tag: 'DB' },
-  { name: 'Artificial Intelligence', docs: '2.4k docs', tag: 'AI' },
-  { name: 'Web Dev', docs: '450 docs', tag: 'HTML' },
-]
-
-const mostAskedDocs = [
-  { rank: 1, title: 'Neural Networks: Comprehensive Intro', meta: '4.2k references · AI Subject' },
-  { rank: 2, title: 'Database Normalization Patterns', meta: '2.8k references · Databases' },
 ]
 
 const quickActions = [
@@ -127,6 +87,16 @@ export default function AdminDashboardPage() {
   const userGrowth = metrics?.userGrowth?.length ? metrics.userGrowth : fallbackChart
   const maxGrowth = Math.max(...userGrowth.map((g) => g.newUsers), 1)
   const totalUsersTrend = `+${newUsers7d.toLocaleString()} (7d)`
+  const totalDocuments = metrics?.totalDocuments
+  const pendingReviewCount = metrics?.pendingReviewDocuments ?? metrics?.pendingReports
+  const totalSubjects = metrics?.totalSubjects
+  const hiddenDocuments = metrics?.hiddenDocuments
+  const subjectActivityItems = metrics?.subjectActivity || metrics?.topSubjects || []
+  const pendingReviewItems = metrics?.pendingReviewDocumentsList || metrics?.pendingDocuments || []
+  const hasChatbot = chatbotApiCalls > 0 || metrics?.chatbotEnabled === true
+  const docMetricUnavailable = totalDocuments == null
+  const pendingMetricUnavailable = pendingReviewCount == null
+  const subjectMetricUnavailable = totalSubjects == null
 
   return (
     <DashboardShell type="admin">
@@ -177,51 +147,46 @@ export default function AdminDashboardPage() {
           <MetricCard
             icon={FileText}
             label="Total Docs"
-            value="1.2M"
-            tag={{ text: 'Archive', tone: 'gray' }}
+            value={docMetricUnavailable ? 'N/A' : totalDocuments.toLocaleString()}
+            tag={{ text: docMetricUnavailable ? 'Awaiting API' : 'Live', tone: 'gray' }}
           />
           <MetricCard
             icon={AlertTriangle}
             label="Pending Review"
-            value="18"
-            tag={{ text: '18 Urgent', tone: 'urgent' }}
-            highlight
+            value={pendingMetricUnavailable ? 'N/A' : pendingReviewCount.toLocaleString()}
+            tag={{
+              text: pendingMetricUnavailable ? 'Awaiting API' : `${pendingReviewCount.toLocaleString()} Pending`,
+              tone: pendingMetricUnavailable ? 'gray' : pendingReviewCount > 0 ? 'urgent' : 'green',
+            }}
+            highlight={!pendingMetricUnavailable && pendingReviewCount > 0}
           />
         </section>
 
         <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {secondaryMetrics.map((m) => (
-            <article
-              key={m.label}
-              className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm"
-            >
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
-                <m.icon className="h-4 w-4" aria-hidden />
-              </span>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">{m.label}</p>
-                <p className="text-xl font-extrabold text-[#0b1c30]">{m.value}</p>
-              </div>
-            </article>
-          ))}
-          <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
-              <MessageSquare className="h-4 w-4" aria-hidden />
-            </span>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">AI Sessions</p>
-              <p className="text-xl font-extrabold text-[#0b1c30]">{chatbotApiCalls.toLocaleString()}</p>
-            </div>
-          </article>
-          <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
-              <Database className="h-4 w-4" aria-hidden />
-            </span>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">Storage Used</p>
-              <p className="text-xl font-extrabold text-[#0b1c30]">{formatStorage(storageUsedGb)}</p>
-            </div>
-          </article>
+          <DashboardSmallMetric
+            icon={Eye}
+            label="Hidden Docs"
+            value={hiddenDocuments == null ? 'N/A' : hiddenDocuments.toLocaleString()}
+            note={hiddenDocuments == null ? 'Awaiting API' : 'Live'}
+          />
+          <DashboardSmallMetric
+            icon={FolderOpen}
+            label="Total Subjects"
+            value={subjectMetricUnavailable ? 'N/A' : totalSubjects.toLocaleString()}
+            note={subjectMetricUnavailable ? 'Awaiting API' : 'Live'}
+          />
+          <DashboardSmallMetric
+            icon={MessageSquare}
+            label="AI Sessions"
+            value={hasChatbot ? chatbotApiCalls.toLocaleString() : 'N/A'}
+            note={hasChatbot ? 'Live' : 'Not implemented yet'}
+          />
+          <DashboardSmallMetric
+            icon={Database}
+            label="Storage Used"
+            value={formatStorage(storageUsedGb)}
+            note="Live"
+          />
         </section>
 
         <section className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -291,26 +256,9 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             </div>
-            <ul className="mt-6 space-y-3 text-sm">
-              <StorageBar
-                label="PDF Documents"
-                value={formatStorage(storageUsedGb * 0.65)}
-                percent={Math.round(storagePercent * 0.65)}
-                color="#3525cd"
-              />
-              <StorageBar
-                label="Office Files (DOCX/PPTX)"
-                value={formatStorage(storageUsedGb * 0.27)}
-                percent={Math.round(storagePercent * 0.27)}
-                color="#57dffe"
-              />
-              <StorageBar
-                label="System Metadata"
-                value={formatStorage(storageUsedGb * 0.08)}
-                percent={Math.round(storagePercent * 0.08)}
-                color="#a78bfa"
-              />
-            </ul>
+            <div className="mt-6 rounded-xl bg-[#f8f9ff] px-4 py-3 text-sm font-semibold text-[#464555]">
+              Storage breakdown by document type is not available from the current metrics API.
+            </div>
           </article>
         </section>
 
@@ -338,58 +286,50 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {pendingDocs.map((doc) => (
-                  <tr key={doc.title} className="border-t border-[#c7c4d8]/15">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 place-items-center rounded-lg bg-red-50 text-red-500">
-                          <FileText className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <p className="font-extrabold text-[#0b1c30]">{doc.title}</p>
-                          <p className="text-xs text-[#74798a]">{doc.meta}</p>
+                {pendingReviewItems.length > 0 ? (
+                  pendingReviewItems.map((doc) => (
+                    <tr key={doc.id || doc.title} className="border-t border-[#c7c4d8]/15">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-10 w-10 place-items-center rounded-lg bg-red-50 text-red-500">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <p className="font-extrabold text-[#0b1c30]">{doc.title}</p>
+                            <p className="text-xs text-[#74798a]">{doc.fileName || doc.type || 'Document'}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 font-semibold text-[#464555]">{doc.user}</td>
-                    <td className="px-4 py-4">
-                      <span className="rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
-                        {doc.subject}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 font-semibold text-[#464555]">{doc.size}</td>
-                    <td className="px-4 py-4 font-semibold text-[#464555]">{doc.date}</td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={`rounded-md px-2 py-1 text-xs font-bold ${
-                          doc.statusTone === 'red'
-                            ? 'bg-red-50 text-red-600'
-                            : 'bg-[#e8e3ff] text-[#3525cd]'
-                        }`}
-                      >
-                        {doc.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          aria-label="View"
-                          className="grid h-8 w-8 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd] hover:bg-[#3525cd]/15"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Block"
-                          className="grid h-8 w-8 place-items-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
-                        >
-                          <Ban className="h-4 w-4" />
-                        </button>
-                      </div>
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{doc.uploadedBy || doc.ownerName || '—'}</td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
+                          {doc.subject || doc.subjectName || '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{doc.size || doc.fileSize || '—'}</td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{formatDate(doc.date || doc.uploadedAt)}</td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-md bg-[#e8e3ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
+                          {doc.status || 'Pending Review'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right text-xs font-semibold text-[#74798a]">Review API pending</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-[#c7c4d8]/15">
+                    <td colSpan="7" className="px-6 py-10 text-center">
+                      <p className="font-extrabold text-[#0b1c30]">
+                        {pendingMetricUnavailable ? 'Pending review data is not available' : 'No documents pending review'}
+                      </p>
+                      <p className="mt-1 text-sm text-[#74798a]">
+                        {pendingMetricUnavailable
+                          ? 'The current metrics API does not return pending documents or reports yet.'
+                          : 'The metrics API reports zero pending review items.'}
+                      </p>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -468,22 +408,33 @@ export default function AdminDashboardPage() {
 
             <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
               <h3 className="font-extrabold text-[#0b1c30]">Subject Activity</h3>
-              <ul className="mt-4 space-y-3">
-                {subjectActivity.map((s) => (
-                  <li
-                    key={s.name}
-                    className="flex items-center justify-between rounded-xl border border-[#c7c4d8]/25 px-3 py-2.5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eff4ff] text-[10px] font-extrabold text-[#3525cd]">
-                        {s.tag}
+              {subjectActivityItems.length > 0 ? (
+                <ul className="mt-4 space-y-3">
+                  {subjectActivityItems.map((s) => (
+                    <li
+                      key={s.id || s.name || s.subjectName}
+                      className="flex items-center justify-between rounded-xl border border-[#c7c4d8]/25 px-3 py-2.5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eff4ff] text-[10px] font-extrabold text-[#3525cd]">
+                          {(s.code || s.name || s.subjectName || '?').slice(0, 3).toUpperCase()}
+                        </span>
+                        <span className="text-sm font-bold text-[#0b1c30]">{s.name || s.subjectName}</span>
+                      </div>
+                      <span className="text-xs font-bold text-[#74798a]">
+                        {(s.documentCount ?? s.docs ?? 0).toLocaleString()} docs
                       </span>
-                      <span className="text-sm font-bold text-[#0b1c30]">{s.name}</span>
-                    </div>
-                    <span className="text-xs font-bold text-[#74798a]">{s.docs}</span>
-                  </li>
-                ))}
-              </ul>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-4 rounded-xl bg-[#f8f9ff] px-4 py-6 text-center">
+                  <p className="text-sm font-extrabold text-[#0b1c30]">Subject activity not available</p>
+                  <p className="mt-1 text-xs font-semibold text-[#74798a]">
+                    The current metrics API does not return subject activity yet.
+                  </p>
+                </div>
+              )}
             </article>
           </div>
         </section>
@@ -493,37 +444,20 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-[#3525cd]" />
               <div>
-                <h2 className="text-lg font-extrabold text-[#0b1c30]">Most Asked Documents</h2>
-                <p className="text-sm text-[#74798a]">Top documents cited in AI Chat sessions</p>
+                <h2 className="text-lg font-extrabold text-[#0b1c30]">AI Chatbot Insights</h2>
+                <p className="text-sm text-[#74798a]">Document citations and chatbot usage analytics</p>
               </div>
             </div>
-            <div className="inline-flex rounded-lg border border-[#c7c4d8]/30 p-1 text-xs font-bold">
-              <button type="button" className="rounded-md bg-[#3525cd] px-3 py-1 text-white">
-                PDFs
-              </button>
-              <button type="button" className="rounded-md px-3 py-1 text-[#74798a]">
-                Research
-              </button>
-            </div>
+            <span className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
+              Not implemented yet
+            </span>
           </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {mostAskedDocs.map((doc) => (
-              <article
-                key={doc.rank}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[#c7c4d8]/25 px-4 py-4"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
-                    <FileText className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="font-extrabold text-[#0b1c30]">{doc.title}</p>
-                    <p className="text-xs text-[#74798a]">{doc.meta}</p>
-                  </div>
-                </div>
-                <span className="text-xl font-extrabold text-[#3525cd]">#{doc.rank}</span>
-              </article>
-            ))}
+          <div className="mt-5 rounded-xl bg-[#f8f9ff] px-5 py-8 text-center">
+            <MessageSquare className="mx-auto h-8 w-8 text-[#74798a]" />
+            <p className="mt-3 text-sm font-extrabold text-[#0b1c30]">Chatbot document analytics are pending</p>
+            <p className="mx-auto mt-1 max-w-xl text-sm text-[#74798a]">
+              The current metrics API only returns chatbot API call count. Top cited documents and research/PDF breakdown are not available yet.
+            </p>
           </div>
         </section>
 
@@ -604,20 +538,18 @@ function CircularProgress({ percent, overLimit = false }) {
   )
 }
 
-function StorageBar({ label, value, percent, color }) {
+function DashboardSmallMetric({ icon: Icon, label, value, note }) {
   return (
-    <li>
-      <div className="flex justify-between text-xs font-bold text-[#464555]">
-        <span>{label}</span>
-        <span>{value}</span>
+    <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">{label}</p>
+        <p className="text-xl font-extrabold text-[#0b1c30]">{value}</p>
+        {note && <p className="text-[10px] font-bold text-[#74798a]">{note}</p>}
       </div>
-      <div className="mt-1.5 h-1.5 w-full rounded-full bg-[#eef0ff]">
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${percent}%`, backgroundColor: color }}
-        />
-      </div>
-    </li>
+    </article>
   )
 }
 
@@ -654,6 +586,17 @@ function relativeTime(value) {
   if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
   const days = Math.floor(hours / 24)
   return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(date)
 }
 
 function formatStorage(gb) {
