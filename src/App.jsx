@@ -13,6 +13,9 @@ import NotFoundPage from './pages/NotFoundPage'
 import ProfileSettingsPage from './pages/ProfileSettingsPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import AdminReportsPage from './pages/AdminReportsPage'
+import PublicDocumentDetailPage from './pages/PublicDocumentDetailPage'
+import PublicDocumentsPage from './pages/PublicDocumentsPage'
 import SubjectsPage from './pages/SubjectsPage'
 import UploadDocumentPage from './pages/UploadDocumentPage'
 import UserDashboardPage from './pages/UserDashboardPage'
@@ -82,6 +85,22 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/public-documents"
+            element={
+              <ProtectedRoute>
+                <PublicDocumentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/public-documents/:id"
+            element={
+              <ProtectedRoute>
+                <PublicDocumentDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/admin/dashboard"
@@ -96,6 +115,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                 <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminReportsPage />
               </ProtectedRoute>
             }
           />

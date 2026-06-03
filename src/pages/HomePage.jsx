@@ -8,8 +8,12 @@ import subjectFilterIcon from '../assets/icons/subject-filter.svg'
 import logo from '../assets/logos/ai-study-hub-logo.svg'
 import chaosImageTwo from '../assets/images/figma-export-1.svg'
 import chaosImageOne from '../assets/images/figma-export-3.svg'
-import laptopPreview from '../assets/images/homepage-laptop.png'
+import heroFallback from '../assets/images/academic-ai-interface.svg'
 import { useAuth } from '../context/useAuth'
+
+/** Hero from Figma MCP asset (SWP391); falls back to local SVG if asset URL fails */
+const HERO_PREVIEW =
+  'https://www.figma.com/api/mcp/asset/8a51b633-b3d7-415a-aa98-b22d0426500c'
 
 const featureCards = [
   {
@@ -140,9 +144,13 @@ function Hero() {
 
         <div className="mt-20 w-full max-w-5xl rounded-2xl border border-[#c7c4d8]/30 bg-white p-px shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
           <img
-            src={laptopPreview}
+            src={HERO_PREVIEW}
             alt="AI Study Hub dashboard preview"
             className="aspect-video w-full rounded-2xl object-cover object-center"
+            onError={(e) => {
+              e.currentTarget.onerror = null
+              e.currentTarget.src = heroFallback
+            }}
           />
         </div>
       </div>
