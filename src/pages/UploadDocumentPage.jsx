@@ -13,14 +13,23 @@ import DashboardShell from '../components/DashboardShell'
 import { listSubjects, uploadDocument } from '../api/documentsApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
-const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'pptx', 'txt']
-const ALLOWED_MIME = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'text/plain',
+const ALLOWED_EXTENSIONS = [
+  'pdf',
+  'doc',
+  'docx',
+  'ppt',
+  'pptx',
+  'txt',
+  'rtf',
+  'md',
+  'xls',
+  'xlsx',
+  'csv',
+  'odt',
+  'ods',
+  'odp',
 ]
-const MAX_SIZE_MB = 25
+const MAX_SIZE_MB = 20
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
 
 function getExtension(name = '') {
@@ -38,9 +47,7 @@ function formatBytes(bytes) {
 function validateFile(file) {
   if (!file) return 'Please select a file.'
   const ext = getExtension(file.name)
-  const validExt = ALLOWED_EXTENSIONS.includes(ext)
-  const validMime = file.type ? ALLOWED_MIME.includes(file.type) : true
-  if (!validExt || !validMime) {
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
     return `Unsupported file type. Allowed: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}.`
   }
   if (file.size > MAX_SIZE_BYTES) {
@@ -107,7 +114,7 @@ export default function UploadDocumentPage() {
     setSuccess('')
 
     if (!title.trim()) return setError('Title is required.')
-    if (!subjectId) return setError('Please select a subject.')
+    if (title.trim().length > 255) return setError('Title must not exceed 255 characters.')
     if (!file) return setError('Please select a file to upload.')
 
     setUploading(true)
@@ -147,7 +154,7 @@ export default function UploadDocumentPage() {
           <div>
             <h1 className="text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">Upload Document</h1>
             <p className="mt-2 text-base text-[#464555]">
-              Add a new study document to your library. Accepted formats: PDF, DOCX, PPTX, TXT (max {MAX_SIZE_MB} MB).
+              Add a new study document to your library. Accepted formats: PDF, Word, PowerPoint, Excel, TXT, Markdown, CSV, OpenDocument (max {MAX_SIZE_MB} MB).
             </p>
           </div>
         </div>
@@ -181,15 +188,14 @@ export default function UploadDocumentPage() {
                 />
               </Field>
 
-              <Field label="Subject" id="subject" required>
+              <Field label="Subject" id="subject" hint="Optional. Leave blank for uncategorized.">
                 <select
                   id="subject"
-                  required
                   value={subjectId}
                   onChange={(e) => setSubjectId(e.target.value)}
                   className="auth-input bg-[#eff4ff]"
                 >
-                  <option value="">Select a subject</option>
+                  <option value="">Uncategorized</option>
                   {subjects.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -228,7 +234,7 @@ export default function UploadDocumentPage() {
                   Click to upload <span className="font-semibold text-[#74798a]">or drag and drop</span>
                 </p>
                 <p className="mt-1 text-xs font-semibold text-[#74798a]">
-                  PDF, DOCX, PPTX, TXT · up to {MAX_SIZE_MB} MB
+                  PDF, Word, PowerPoint, Excel, TXT, MD, CSV, ODF · up to {MAX_SIZE_MB} MB
                 </p>
               </div>
               <input

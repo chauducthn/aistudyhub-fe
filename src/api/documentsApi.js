@@ -1,17 +1,6 @@
-
-import { listSubjects as listSubjectsImpl } from './subjectsApi'
+import apiClient from './client'
 
 const USE_MOCK = true
-
-const MOCK_SUBJECTS = [
-  { id: 'sub-1', name: 'Software Engineering', code: 'SE' },
-  { id: 'sub-2', name: 'Database Systems', code: 'DB' },
-  { id: 'sub-3', name: 'Artificial Intelligence', code: 'AI' },
-  { id: 'sub-4', name: 'Web Development', code: 'WEB' },
-  { id: 'sub-5', name: 'Physics', code: 'PHY' },
-  { id: 'sub-6', name: 'Mathematics', code: 'MATH' },
-]
-void MOCK_SUBJECTS
 
 const MOCK_DOCUMENTS = [
   {
@@ -179,7 +168,8 @@ function delay(ms) {
 }
 
 export async function listSubjects() {
-  return listSubjectsImpl()
+  const { data } = await apiClient.get('/subjects')
+  return data
 }
 
 export async function getDocument(id) {
@@ -303,29 +293,23 @@ export async function listMyDocuments(params = {}) {
 }
 
 export async function uploadDocument(payload, onProgress) {
-  if (USE_MOCK) {
-    for (let percent = 0; percent <= 100; percent += 10) {
-      await delay(120)
-      onProgress?.(percent)
-    }
-    const ext = (payload.file?.name || '').split('.').pop()?.toLowerCase()
-    const newDoc = {
-      id: `doc-${Date.now()}`,
-      title: payload.title,
-      description: payload.description,
-      subjectId: payload.subjectId,
-      fileName: payload.file?.name,
-      fileSize: payload.file?.size,
-      fileType: ext || 'pdf',
-      uploadedAt: new Date().toISOString(),
-      status: 'PENDING',
-      visibility: 'PRIVATE',
-      downloadUrl: '#',
-    }
-    documentsStore = [newDoc, ...documentsStore]
-    return { success: true, message: 'Document uploaded.', data: newDoc }
-  }
+  const formData = new FormData()
+  formData.append('file', payload.file)
+  formData.append('title', payload.title)
+  if (payload.description) formData.append('description', payload.description)
+  if (payload.subjectId) formData.append('subjectId', payload.subjectId)
 
+  const { data } = await apiClient.post('/documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (event) => {
+      if (!onProgress) return
+      const percent = event.total
+        ? Math.round((event.loaded * 100) / event.total)
+        : 0
+      onProgress(percent)
+    },
+  })
+  return data
 }
 
 export async function updateDocument(id, payload) {
