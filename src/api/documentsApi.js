@@ -2,6 +2,17 @@ import apiClient from './client'
 
 const USE_MOCK = true
 
+function normalizeDoc(d) {
+  if (!d) return d
+  return {
+    ...d,
+    fileName: d.originalFilename ?? d.fileName,
+    uploadedAt: d.createdAt ?? d.uploadedAt,
+    fileType: (d.fileType || '').toLowerCase(),
+    visibility: d.status ?? d.visibility,
+  }
+}
+
 const MOCK_DOCUMENTS = [
   {
     id: 'doc-001',
@@ -259,37 +270,17 @@ export async function getDocumentPreview(id) {
 }
 
 export async function listMyDocuments(params = {}) {
-  if (USE_MOCK) {
-    await delay(220)
-    const { search = '', subjectId = '', status = 'ALL', visibility = 'ALL', page = 0, size = 10 } = params
-    const keyword = search.trim().toLowerCase()
-    let filtered = [...documentsStore]
-    if (keyword) {
-      filtered = filtered.filter(
-        (d) =>
-          d.title.toLowerCase().includes(keyword) ||
-          d.description.toLowerCase().includes(keyword) ||
-          d.fileName.toLowerCase().includes(keyword),
-      )
-    }
-    if (subjectId) filtered = filtered.filter((d) => d.subjectId === subjectId)
-    if (status && status !== 'ALL') filtered = filtered.filter((d) => d.status === status)
-    if (visibility && visibility !== 'ALL') filtered = filtered.filter((d) => d.visibility === visibility)
+  const { search = '', subjectId = '', visibility = 'ALL', page = 0, size = 10 } = params
+  const query = { page, size }
+  if (search.trim()) query.keyword = search.trim()
+  if (subjectId) query.subjectId = subjectId
+  if (visibility && visibility !== 'ALL') query.status = visibility
 
-    filtered.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
-
-    const totalElements = filtered.length
-    const totalPages = Math.max(1, Math.ceil(totalElements / size))
-    const safePage = Math.min(page, totalPages - 1)
-    const start = safePage * size
-    const content = filtered.slice(start, start + size)
-
-    return {
-      success: true,
-      data: { content, page: safePage, size, totalElements, totalPages },
-      message: null,
-    }
+  const { data } = await apiClient.get('/documents', { params: query })
+  if (data?.success && data.data) {
+    data.data = { ...data.data, content: (data.data.content || []).map(normalizeDoc) }
   }
+  return data
 }
 
 export async function uploadDocument(payload, onProgress) {
@@ -313,56 +304,61 @@ export async function uploadDocument(payload, onProgress) {
 }
 
 export async function updateDocument(id, payload) {
-  if (USE_MOCK) {
-    await delay(260)
-    if (id && id.startsWith('forbidden')) {
-      const error = new Error('Forbidden')
-      error.response = { status: 403, data: { success: false, message: 'You do not have permission to edit this document.' } }
-      throw error
-    }
-    const idx = documentsStore.findIndex((d) => d.id === id)
-    if (idx === -1) {
-      const error = new Error('Not Found')
-      error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
-      throw error
-    }
-    const updated = { ...documentsStore[idx], ...payload }
-    documentsStore = [
-      ...documentsStore.slice(0, idx),
-      updated,
-      ...documentsStore.slice(idx + 1),
-    ]
-    return { success: true, message: 'Document updated.', data: updated }
+  let result = null
+
+  if (payload.title !== undefined || payload.description !== undefined) {
+    const body = {}
+    if (payload.title !== undefined) body.title = payload.title
+    if (payload.description !== undefined) body.description = payload.description
+    const { data } = await apiClient.patch(`/documents/${id}`, body)
+    result = data
   }
+
+  if ('subjectId' in payload) {
+    const subjectId = payload.subjectId === '' || payload.subjectId == null ? null : payload.subjectId
+    const { data } = await apiClient.patch(`/documents/${id}/subject`, { subjectId })
+    result = data
+  }
+
+  if (payload.visibility && payload.visibility !== result?.data?.status) {
+    result = await setDocumentVisibility(id, payload.visibility)
+  }
+
+  if (result?.success && result.data) result.data = normalizeDoc(result.data)
+  return result ?? { success: true, message: null, data: null }
 }
 
 export async function deleteDocument(id) {
-  if (USE_MOCK) {
-    await delay(220)
-    const before = documentsStore.length
-    documentsStore = documentsStore.filter((doc) => doc.id !== id)
-    if (documentsStore.length === before) {
-      return { success: false, message: 'Document not found.', data: null }
-    }
-    return { success: true, message: 'Document deleted.', data: { id } }
-  }
+  const { data } = await apiClient.delete(`/documents/${id}`)
+  return data
 }
 
-export async function toggleDocumentVisibility(id) {
-  if (USE_MOCK) {
-    await delay(180)
-    const doc = documentsStore.find((d) => d.id === id)
-    if (!doc) return { success: false, message: 'Document not found.', data: null }
-    const next = doc.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
-    return updateDocument(id, { visibility: next })
-  }
+export async function setDocumentVisibility(id, status) {
+  const { data } = await apiClient.patch(`/documents/${id}/visibility`, { status })
+  if (data?.success && data.data) data.data = normalizeDoc(data.data)
+  return data
 }
 
-export function downloadDocument(doc) {
-  if (USE_MOCK) {
-    if (doc?.downloadUrl && doc.downloadUrl !== '#') {
-      window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer')
-    }
-    return Promise.resolve({ success: true, data: { id: doc?.id } })
-  }
+export async function toggleDocumentVisibility(doc) {
+  const current = doc.status ?? doc.visibility
+  const next = current === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
+  return setDocumentVisibility(doc.id, next)
+}
+
+export async function downloadDocument(doc) {
+  const response = await apiClient.get(`/documents/${doc.id}/download`, {
+    responseType: 'blob',
+  })
+  const blob = new Blob([response.data], {
+    type: response.headers['content-type'] || 'application/octet-stream',
+  })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = doc.fileName || doc.originalFilename || 'document'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+  return { success: true, data: { id: doc.id } }
 }

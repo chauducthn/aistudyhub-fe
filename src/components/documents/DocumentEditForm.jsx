@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export default function DocumentEditForm({
@@ -13,16 +13,8 @@ export default function DocumentEditForm({
   const [title, setTitle] = useState(doc.title || '')
   const [description, setDescription] = useState(doc.description || '')
   const [subjectId, setSubjectId] = useState(doc.subjectId || '')
-  const [visibility, setVisibility] = useState(doc.visibility || 'PRIVATE')
+  const [visibility, setVisibility] = useState(doc.visibility || doc.status || 'PRIVATE')
   const [titleError, setTitleError] = useState('')
-
-  useEffect(() => {
-    setTitle(doc.title || '')
-    setDescription(doc.description || '')
-    setSubjectId(doc.subjectId || '')
-    setVisibility(doc.visibility || 'PRIVATE')
-    setTitleError('')
-  }, [doc])
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -82,15 +74,14 @@ export default function DocumentEditForm({
         </p>
       </Field>
 
-      <Field label="Subject" htmlFor="edit-subject" required>
+      <Field label="Subject" htmlFor="edit-subject">
         <select
           id="edit-subject"
           value={subjectId}
           onChange={(e) => setSubjectId(e.target.value)}
           className="auth-input"
-          required
         >
-          <option value="">Select a subject</option>
+          <option value="">Uncategorized</option>
           {subjects.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
