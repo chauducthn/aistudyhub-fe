@@ -1,7 +1,5 @@
 import apiClient from './client'
 
-const USE_MOCK = true
-
 function normalizeDoc(d) {
   if (!d) return d
   return {
@@ -13,259 +11,61 @@ function normalizeDoc(d) {
   }
 }
 
-const MOCK_DOCUMENTS = [
-  {
-    id: 'doc-001',
-    title: 'Neural Networks – Comprehensive Notes',
-    description: 'Deep dive into CNN, RNN, transformers and gradient descent.',
-    subjectId: 'sub-3',
-    fileName: 'Neural_Networks_Vol1.pdf',
-    fileSize: 4_300_000,
-    fileType: 'pdf',
-    uploadedAt: '2026-05-30T09:42:00Z',
-    status: 'APPROVED',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-002',
-    title: 'Database Normalization Patterns',
-    description: '1NF through BCNF with examples.',
-    subjectId: 'sub-2',
-    fileName: 'DB_Normalization.docx',
-    fileSize: 1_500_000,
-    fileType: 'docx',
-    uploadedAt: '2026-05-28T13:10:00Z',
-    status: 'APPROVED',
-    visibility: 'PUBLIC',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-003',
-    title: 'Quantum Mechanics Lab Report',
-    description: 'Heisenberg uncertainty principle and double-slit experiment.',
-    subjectId: 'sub-5',
-    fileName: 'Quantum_Lab.pdf',
-    fileSize: 3_100_000,
-    fileType: 'pdf',
-    uploadedAt: '2026-05-25T07:00:00Z',
-    status: 'PENDING',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-004',
-    title: 'React Server Components',
-    description: 'Architecture, streaming, and caching strategies.',
-    subjectId: 'sub-4',
-    fileName: 'RSC_Architecture.pptx',
-    fileSize: 8_700_000,
-    fileType: 'pptx',
-    uploadedAt: '2026-05-22T19:31:00Z',
-    status: 'APPROVED',
-    visibility: 'PUBLIC',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-005',
-    title: 'Calculus II – Integration Techniques',
-    description: 'Integration by parts, partial fractions, trigonometric substitution.',
-    subjectId: 'sub-6',
-    fileName: 'Calculus_II.pdf',
-    fileSize: 2_400_000,
-    fileType: 'pdf',
-    uploadedAt: '2026-05-19T11:05:00Z',
-    status: 'APPROVED',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-006',
-    title: 'Agile Sprint Retrospective',
-    description: 'Template + lessons learned across 8 sprints.',
-    subjectId: 'sub-1',
-    fileName: 'Sprint_Retro.docx',
-    fileSize: 540_000,
-    fileType: 'docx',
-    uploadedAt: '2026-05-17T08:21:00Z',
-    status: 'REJECTED',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-007',
-    title: 'Transformer Attention Visualization',
-    description: 'Slides explaining attention heatmaps in BERT and GPT.',
-    subjectId: 'sub-3',
-    fileName: 'Attention_Slides.pptx',
-    fileSize: 12_400_000,
-    fileType: 'pptx',
-    uploadedAt: '2026-05-14T16:48:00Z',
-    status: 'APPROVED',
-    visibility: 'PUBLIC',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-008',
-    title: 'Software Architecture Patterns',
-    description: 'Layered, microservices, event-driven, hexagonal.',
-    subjectId: 'sub-1',
-    fileName: 'Arch_Patterns.pdf',
-    fileSize: 5_200_000,
-    fileType: 'pdf',
-    uploadedAt: '2026-05-10T14:00:00Z',
-    status: 'APPROVED',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-009',
-    title: 'Git Workflow Cheatsheet',
-    description: 'Common git commands and branching strategies.',
-    subjectId: 'sub-1',
-    fileName: 'Git_Cheatsheet.txt',
-    fileSize: 32_000,
-    fileType: 'txt',
-    uploadedAt: '2026-05-08T10:30:00Z',
-    status: 'APPROVED',
-    visibility: 'PUBLIC',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-010',
-    title: 'SQL Optimization Guide',
-    description: 'Indexing, query plans, and execution tuning.',
-    subjectId: 'sub-2',
-    fileName: 'SQL_Optimization.pdf',
-    fileSize: 2_100_000,
-    fileType: 'pdf',
-    uploadedAt: '2026-05-05T22:14:00Z',
-    status: 'PENDING',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-011',
-    title: 'Linear Algebra Notes',
-    description: 'Vector spaces, eigenvalues, and matrix decomposition.',
-    subjectId: 'sub-6',
-    fileName: 'Linear_Algebra.pdf',
-    fileSize: 3_800_000,
-    fileType: 'pdf',
-    uploadedAt: '2026-05-02T05:55:00Z',
-    status: 'APPROVED',
-    visibility: 'PRIVATE',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-012',
-    title: 'CSS Layout Techniques',
-    description: 'Flexbox, Grid, container queries.',
-    subjectId: 'sub-4',
-    fileName: 'CSS_Layouts.pptx',
-    fileSize: 6_900_000,
-    fileType: 'pptx',
-    uploadedAt: '2026-04-29T09:09:00Z',
-    status: 'APPROVED',
-    visibility: 'PUBLIC',
-    downloadUrl: '#',
-  },
-]
-
-let documentsStore = [...MOCK_DOCUMENTS]
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 export async function listSubjects() {
   const { data } = await apiClient.get('/subjects')
   return data
 }
 
 export async function getDocument(id) {
-  if (USE_MOCK) {
-    await delay(220)
-    if (id && id.startsWith('forbidden')) {
-      const error = new Error('Forbidden')
-      error.response = { status: 403, data: { success: false, message: 'You do not have permission to edit this document.' } }
-      throw error
-    }
-    const doc = documentsStore.find((d) => d.id === id)
-    if (!doc) {
-      const error = new Error('Not Found')
-      error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
-      throw error
-    }
-    const owner = {
-      id: 'me',
-      fullName: 'Alex Chen',
-      email: 'alex.chen@university.edu',
-    }
-    return { success: true, message: null, data: { ...doc, owner } }
-  }
+  const { data } = await apiClient.get(`/documents/${id}`)
+  if (data?.success && data.data) data.data = normalizeDoc(data.data)
+  return data
 }
 
-const PDF_PREVIEW_URLS = {
-  pdf: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
-}
+const TEXT_PREVIEW_EXTENSIONS = new Set(['txt', 'md', 'csv'])
+const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
 
-const TXT_PREVIEW_TEXT = `# Sample Preview
+export async function getDocumentPreview(doc) {
+  const ext = (doc.fileType || doc.originalFilename?.split('.').pop() || '').toLowerCase()
 
-This is a generated preview for demonstration. When the real backend is available,
-this content will come from the document's stored text or a server-rendered preview.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, sapien id
-consequat ullamcorper, lectus libero efficitur urna, ut volutpat odio mauris non
-lectus. Suspendisse potenti.
-
-- Bullet point one
-- Bullet point two
-- Bullet point three
-
-Section 1: Overview
-Section 2: Methodology
-Section 3: Results
-Section 4: Discussion
-Section 5: References`
-
-export async function getDocumentPreview(id) {
-  if (USE_MOCK) {
-    await delay(320)
-    const doc = documentsStore.find((d) => d.id === id)
-    if (!doc) {
-      const error = new Error('Not Found')
-      error.response = { status: 404, data: { success: false, message: 'Document not found.' } }
-      throw error
-    }
-    const ext = (doc.fileType || '').toLowerCase()
-    if (ext === 'pdf') {
-      return {
-        success: true,
-        data: {
-          type: 'pdf',
-          previewUrl: PDF_PREVIEW_URLS.pdf,
-          fileName: doc.fileName,
-        },
-        message: null,
-      }
-    }
-    if (ext === 'txt') {
-      return {
-        success: true,
-        data: {
-          type: 'text',
-          textContent: TXT_PREVIEW_TEXT,
-          fileName: doc.fileName,
-        },
-        message: null,
-      }
-    }
+  if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext)) {
     return {
       success: false,
       data: null,
-      message: `Inline preview is not available for ${ext.toUpperCase()} files. Download to view.`,
+      message: `Inline preview is not available for ${ext.toUpperCase() || 'this'} files. Download to view.`,
     }
+  }
+
+  const response = await apiClient.get(`/documents/${doc.id}/download`, {
+    responseType: 'blob',
+  })
+  const blob = response.data
+
+  if (ext === 'pdf') {
+    const pdfBlob =
+      blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
+    return {
+      success: true,
+      message: null,
+      data: {
+        type: 'pdf',
+        previewUrl: window.URL.createObjectURL(pdfBlob),
+        fileName: doc.fileName || doc.originalFilename,
+      },
+    }
+  }
+
+  const slice = blob.size > MAX_TEXT_PREVIEW_BYTES ? blob.slice(0, MAX_TEXT_PREVIEW_BYTES) : blob
+  const textContent = await slice.text()
+  return {
+    success: true,
+    message: null,
+    data: {
+      type: 'text',
+      textContent,
+      truncated: blob.size > MAX_TEXT_PREVIEW_BYTES,
+      fileName: doc.fileName || doc.originalFilename,
+    },
   }
 }
 
