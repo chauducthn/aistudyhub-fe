@@ -12,6 +12,13 @@ export async function listUsers({ search = '', page = 0, size = 10 } = {}) {
   return data
 }
 
+export async function listReports({ status = 'PENDING', page = 0, size = 10 } = {}) {
+  const { data } = await apiClient.get('/admin/reports', {
+    params: { status, page, size },
+  })
+  return data
+}
+
 export async function updateUserStatus(userId, status) {
   const { data } = await apiClient.patch(`/admin/users/${userId}/status`, {
     status,

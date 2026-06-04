@@ -8,92 +8,78 @@ import {
   FileText,
   FolderOpen,
   Lock,
-  Mail,
   MessageSquare,
-  Plus,
   Sparkles,
   Users,
-  Wrench,
   Zap,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import { useAuth } from '../context/useAuth'
-import { getDashboardMetrics, listUsers } from '../api/adminApi'
+import { getDashboardMetrics, listReports, listUsers } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
-
-
-const fallbackUsers = [
-  { id: 'u1', initials: 'JD', fullName: 'John Doe', email: 'john.d@university.edu', role: 'Student', status: 'Active', joined: '2h ago' },
-  { id: 'u2', initials: 'MT', fullName: 'Mary Taylor', email: 'm.taylor@tech-institute.com', role: 'Researcher', status: 'Locked', joined: '5h ago' },
-  { id: 'u3', initials: 'SJ', fullName: 'Sarah Jenkins', email: 's.jenkins@academia.ai', role: 'Researcher', status: 'Active', joined: '2 mins ago' },
-  { id: 'u4', initials: 'DM', fullName: 'David Miller', email: 'david.m@univ.edu', role: 'Student', status: 'Locked', joined: '14 hours ago' },
-  { id: 'u5', initials: 'ER', fullName: 'Elena Rodriguez', email: 'elena.rod@global.ai', role: 'Admin', status: 'Active', joined: 'Just now' },
-  { id: 'u6', initials: 'AR', fullName: 'Alex Rivers', email: 'alex.rivers@university.edu', role: 'Student', status: 'Active', joined: '1h ago' },
-  { id: 'u7', initials: 'MB', fullName: 'Michael Brown', email: 'm.brown@oxford.edu', role: 'Student', status: 'Active', joined: '3h ago' },
-]
-
-const quickActions = [
-  { label: 'Invite Admin', icon: Mail },
-  { label: 'Backup DB', icon: Database },
-  { label: 'Broadcast', icon: MessageSquare },
-  { label: 'Maintenance', icon: Wrench },
-]
-
-const fallbackChart = [
-  { date: '2026-05-22', newUsers: 5 },
-  { date: '2026-05-23', newUsers: 12 },
-  { date: '2026-05-24', newUsers: 8 },
-  { date: '2026-05-25', newUsers: 15 },
-  { date: '2026-05-26', newUsers: 22 },
-  { date: '2026-05-27', newUsers: 18 },
-  { date: '2026-05-28', newUsers: 7 },
-]
 
 export default function AdminDashboardPage() {
   const { user } = useAuth()
   const [metrics, setMetrics] = useState(null)
   const [recentUsers, setRecentUsers] = useState([])
+  const [pendingReports, setPendingReports] = useState([])
+  const [pendingReportsTotal, setPendingReportsTotal] = useState(0)
   const [error, setError] = useState('')
   const [showHealthToast, setShowHealthToast] = useState(true)
 
   useEffect(() => {
-    const load = async () => {
+    let ignore = false
+    ;(async () => {
       try {
-        const [metricsRes, usersRes] = await Promise.all([
+        const [metricsRes, usersRes, reportsRes] = await Promise.all([
           getDashboardMetrics(),
           listUsers({ page: 0, size: 7 }),
+          listReports({ status: 'PENDING', page: 0, size: 5 }),
         ])
+        if (ignore) return
         if (metricsRes.success) setMetrics(metricsRes.data)
         if (usersRes.success) setRecentUsers(usersRes.data?.content || [])
+        if (reportsRes.success) {
+          setPendingReports(reportsRes.data?.content || [])
+          setPendingReportsTotal(reportsRes.data?.totalElements ?? 0)
+        }
       } catch (err) {
-        setError(getApiErrorMessage(err, 'Could not load admin dashboard.'))
+        if (!ignore) setError(getApiErrorMessage(err, 'Could not load admin dashboard.'))
       }
+    })()
+    return () => {
+      ignore = true
     }
-    void load()
   }, [])
 
   const firstName = user?.fullName?.split(' ')[0] || 'Admin'
-  const usersToShow = recentUsers.length > 0 ? recentUsers.map(mapApiUser) : fallbackUsers
-  const totalUsers = metrics?.totalUsers ?? 12842
-  const activeUsers = metrics?.activeUsers ?? 2410
-  const lockedUsers = metrics?.lockedUsers ?? 42
-  const newUsers7d = metrics?.newUsersLast7Days ?? 87
+  const usersToShow = recentUsers.map(mapApiUser)
+
+  const totalUsers = metrics?.totalUsers ?? 0
+  const activeUsers = metrics?.activeUsers ?? 0
+  const lockedUsers = metrics?.lockedUsers ?? 0
+  const newUsers7d = metrics?.newUsersLast7Days ?? 0
   const chatbotApiCalls = metrics?.chatbotApiCalls ?? 0
+
   const storage = metrics?.storage
-  const storagePercent = storage?.percentUsed != null ? Math.round(storage.percentUsed) : 75
-  const storageUsedGb = storage?.usedGb ?? 4.2
-  const storageLimitGb = storage?.limitGb ?? 5.6
+  const storagePercent = storage?.percentUsed != null ? Math.round(storage.percentUsed) : 0
+  const storageUsedGb = storage?.usedGb ?? 0
+  const storageLimitGb = storage?.limitGb ?? 0
   const storageOverLimit = storage?.overLimit ?? false
-  const userGrowth = metrics?.userGrowth?.length ? metrics.userGrowth : fallbackChart
+
+  const userGrowth = metrics?.userGrowth ?? []
   const maxGrowth = Math.max(...userGrowth.map((g) => g.newUsers), 1)
   const totalUsersTrend = `+${newUsers7d.toLocaleString()} (7d)`
-  const totalDocuments = metrics?.totalDocuments
-  const pendingReviewCount = metrics?.pendingReviewDocuments ?? metrics?.pendingReports
-  const totalSubjects = metrics?.totalSubjects
-  const hiddenDocuments = metrics?.hiddenDocuments
-  const subjectActivityItems = metrics?.subjectActivity || metrics?.topSubjects || []
-  const pendingReviewItems = metrics?.pendingReviewDocumentsList || metrics?.pendingDocuments || []
-  const hasChatbot = chatbotApiCalls > 0 || metrics?.chatbotEnabled === true
+
+  const totalDocuments = metrics?.documents?.totalDocuments
+  const publicDocuments = metrics?.documents?.publicDocuments
+  const privateDocuments = metrics?.documents?.privateDocuments
+  const hiddenDocuments = metrics?.documents?.hiddenDocuments
+  const totalSubjects = metrics?.subjects?.totalSubjects
+  const pendingReviewCount = metrics?.reports?.pendingReports
+
+  const hasChatbot = chatbotApiCalls > 0
+  const metricsLoaded = metrics != null
   const docMetricUnavailable = totalDocuments == null
   const pendingMetricUnavailable = pendingReviewCount == null
   const subjectMetricUnavailable = totalSubjects == null
@@ -110,15 +96,13 @@ export default function AdminDashboardPage() {
               Monitor system activity, review documents, and manage AI Study Hub.
             </p>
           </div>
-          <button
-            type="button"
+          <Link
+            to="/admin/users"
             className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_8px_20px_rgba(53,37,205,0.25)]"
           >
-            <span className="grid h-5 w-5 place-items-center rounded-full bg-white/25">
-              <Plus className="h-3.5 w-3.5" />
-            </span>
-            New Research Project
-          </button>
+            <Users className="h-4 w-4" />
+            Manage Users
+          </Link>
         </div>
 
         {error && (
@@ -193,51 +177,47 @@ export default function AdminDashboardPage() {
           <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-extrabold text-[#0b1c30]">System Activity Overview</h2>
-                <p className="text-sm text-[#74798a]">User growth vs Content uploads</p>
+                <h2 className="text-lg font-extrabold text-[#0b1c30]">New User Growth</h2>
+                <p className="text-sm text-[#74798a]">New sign-ups per day</p>
               </div>
               <span className="rounded-lg bg-[#eff4ff] px-3 py-1 text-xs font-bold text-[#3525cd]">
-                This Month
+                Last 7 Days
               </span>
             </div>
-            <div className="mt-8 flex h-48 items-end gap-3 border-t border-[#c7c4d8]/20 pt-4">
-              {userGrowth.map((day) => {
-                const usersHeight = Math.max(8, (day.newUsers / maxGrowth) * 150)
-                const uploadsValue = Math.round(day.newUsers * 0.55)
-                const uploadsHeight = Math.max(6, (uploadsValue / maxGrowth) * 150)
-                const labelDate = new Date(day.date)
-                const weekday = Number.isNaN(labelDate.getTime())
-                  ? day.date
-                  : labelDate.toLocaleDateString(undefined, { weekday: 'short' })
-                return (
-                  <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="flex w-full items-end justify-center gap-1">
-                      <div
-                        className="w-1/2 max-w-[14px] rounded-t-md bg-[#3525cd]"
-                        style={{ height: `${usersHeight}px` }}
-                        title={`${day.newUsers} new users`}
-                      />
-                      <div
-                        className="w-1/2 max-w-[14px] rounded-t-md bg-[#10b3a8]"
-                        style={{ height: `${uploadsHeight}px` }}
-                        title={`${uploadsValue} uploads`}
-                      />
-                    </div>
-                    <span className="text-[10px] font-bold text-[#74798a]">{weekday}</span>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="mt-4 flex items-center gap-6 text-xs font-semibold text-[#74798a]">
-              <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#3525cd]" />
-                New Users
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#10b3a8]" />
-                Uploads
-              </span>
-            </div>
+            {userGrowth.length > 0 ? (
+              <>
+                <div className="mt-8 flex h-48 items-end gap-3 border-t border-[#c7c4d8]/20 pt-4">
+                  {userGrowth.map((day) => {
+                    const usersHeight = Math.max(8, (day.newUsers / maxGrowth) * 150)
+                    const labelDate = new Date(day.date)
+                    const weekday = Number.isNaN(labelDate.getTime())
+                      ? day.date
+                      : labelDate.toLocaleDateString(undefined, { weekday: 'short' })
+                    return (
+                      <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
+                        <span className="text-[10px] font-bold text-[#3525cd]">{day.newUsers}</span>
+                        <div
+                          className="w-full max-w-[28px] rounded-t-md bg-[#3525cd]"
+                          style={{ height: `${usersHeight}px` }}
+                          title={`${day.newUsers} new users`}
+                        />
+                        <span className="text-[10px] font-bold text-[#74798a]">{weekday}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-4 flex items-center gap-6 text-xs font-semibold text-[#74798a]">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#3525cd]" />
+                    New Users
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="mt-6 rounded-xl bg-[#f8f9ff] px-4 py-10 text-center text-sm font-semibold text-[#74798a]">
+                {metricsLoaded ? 'No new users in the last 7 days.' : 'Loading user growth...'}
+              </div>
+            )}
           </article>
 
           <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
@@ -265,67 +245,63 @@ export default function AdminDashboardPage() {
         <section className="mt-6 overflow-hidden rounded-2xl border border-[#c7c4d8]/20 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-[#c7c4d8]/20 px-6 py-4">
             <div>
-              <h2 className="text-lg font-extrabold text-[#0b1c30]">Pending Document Review</h2>
-              <p className="text-sm text-[#74798a]">Action required for flags and reports</p>
+              <h2 className="text-lg font-extrabold text-[#0b1c30]">Pending Document Reports</h2>
+              <p className="text-sm text-[#74798a]">
+                {pendingReportsTotal > 0
+                  ? `${pendingReportsTotal.toLocaleString()} report${pendingReportsTotal === 1 ? '' : 's'} awaiting review`
+                  : 'User-submitted reports awaiting review'}
+              </p>
             </div>
-            <button type="button" className="text-sm font-bold text-[#3525cd]">
-              View All Alerts
-            </button>
+            <Link to="/admin/users" className="text-sm font-bold text-[#3525cd]">
+              View All
+            </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="bg-[#f5f7ff] text-xs font-bold uppercase tracking-wide text-[#74798a]">
                 <tr>
-                  <th className="px-6 py-3">Title</th>
-                  <th className="px-4 py-3">Uploaded By</th>
-                  <th className="px-4 py-3">Subject</th>
-                  <th className="px-4 py-3">Size</th>
+                  <th className="px-6 py-3">Document</th>
+                  <th className="px-4 py-3">Reported By</th>
+                  <th className="px-4 py-3">Reason</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingReviewItems.length > 0 ? (
-                  pendingReviewItems.map((doc) => (
-                    <tr key={doc.id || doc.title} className="border-t border-[#c7c4d8]/15">
+                {pendingReports.length > 0 ? (
+                  pendingReports.map((report) => (
+                    <tr key={report.id} className="border-t border-[#c7c4d8]/15">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <span className="grid h-10 w-10 place-items-center rounded-lg bg-red-50 text-red-500">
                             <FileText className="h-5 w-5" />
                           </span>
                           <div>
-                            <p className="font-extrabold text-[#0b1c30]">{doc.title}</p>
-                            <p className="text-xs text-[#74798a]">{doc.fileName || doc.type || 'Document'}</p>
+                            <p className="font-extrabold text-[#0b1c30]">{report.documentTitle || `Document #${report.documentId}`}</p>
+                            <p className="max-w-xs truncate text-xs text-[#74798a]">{report.description || '—'}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 font-semibold text-[#464555]">{doc.uploadedBy || doc.ownerName || '—'}</td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{report.reporterEmail || '—'}</td>
                       <td className="px-4 py-4">
                         <span className="rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
-                          {doc.subject || doc.subjectName || '—'}
+                          {formatReason(report.reason)}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-semibold text-[#464555]">{doc.size || doc.fileSize || '—'}</td>
-                      <td className="px-4 py-4 font-semibold text-[#464555]">{formatDate(doc.date || doc.uploadedAt)}</td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{formatDate(report.createdAt)}</td>
                       <td className="px-4 py-4">
-                        <span className="rounded-md bg-[#e8e3ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
-                          {doc.status || 'Pending Review'}
+                        <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
+                          {report.status || 'PENDING'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-right text-xs font-semibold text-[#74798a]">Review API pending</td>
                     </tr>
                   ))
                 ) : (
                   <tr className="border-t border-[#c7c4d8]/15">
-                    <td colSpan="7" className="px-6 py-10 text-center">
-                      <p className="font-extrabold text-[#0b1c30]">
-                        {pendingMetricUnavailable ? 'Pending review data is not available' : 'No documents pending review'}
-                      </p>
+                    <td colSpan="5" className="px-6 py-10 text-center">
+                      <p className="font-extrabold text-[#0b1c30]">No documents pending review</p>
                       <p className="mt-1 text-sm text-[#74798a]">
-                        {pendingMetricUnavailable
-                          ? 'The current metrics API does not return pending documents or reports yet.'
-                          : 'The metrics API reports zero pending review items.'}
+                        There are no user-submitted reports awaiting review.
                       </p>
                     </td>
                   </tr>
@@ -356,83 +332,76 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {usersToShow.map((u) => (
-                  <tr key={u.id} className="border-t border-[#c7c4d8]/15">
-                    <td className="px-6 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-9 w-9 place-items-center rounded-full bg-[#e8e3ff] text-xs font-extrabold text-[#3525cd]">
-                          {u.initials}
-                        </span>
-                        <div>
-                          <p className="font-extrabold text-[#0b1c30]">{u.fullName}</p>
-                          <p className="text-xs text-[#74798a]">{u.email}</p>
+                {usersToShow.length > 0 ? (
+                  usersToShow.map((u) => (
+                    <tr key={u.id} className="border-t border-[#c7c4d8]/15">
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#e8e3ff] text-xs font-extrabold text-[#3525cd]">
+                            {u.initials}
+                          </span>
+                          <div>
+                            <p className="font-extrabold text-[#0b1c30]">{u.fullName}</p>
+                            <p className="text-xs text-[#74798a]">{u.email}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 font-semibold text-[#464555]">{u.role}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold">
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            u.status === 'Locked' ? 'bg-red-500' : 'bg-emerald-500'
-                          }`}
-                        />
-                        <span className={u.status === 'Locked' ? 'text-red-600' : 'text-emerald-600'}>
-                          {u.status}
+                      </td>
+                      <td className="px-4 py-3.5 font-semibold text-[#464555]">{u.role}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              u.status === 'Locked' ? 'bg-red-500' : 'bg-emerald-500'
+                            }`}
+                          />
+                          <span className={u.status === 'Locked' ? 'text-red-600' : 'text-emerald-600'}>
+                            {u.status}
+                          </span>
                         </span>
-                      </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs font-semibold text-[#74798a]">{u.joined}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-[#c7c4d8]/15">
+                    <td colSpan="4" className="px-6 py-10 text-center text-sm font-semibold text-[#74798a]">
+                      {metricsLoaded ? 'No users found.' : 'Loading users...'}
                     </td>
-                    <td className="px-4 py-3.5 text-xs font-semibold text-[#74798a]">{u.joined}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </article>
 
           <div className="space-y-4">
-            <article className="rounded-2xl bg-[#3525cd] p-5 text-white shadow-[0_12px_28px_rgba(53,37,205,0.25)]">
-              <h3 className="text-base font-extrabold">Quick Admin Actions</h3>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {quickActions.map((action) => (
-                  <button
-                    key={action.label}
-                    type="button"
-                    className="flex flex-col items-center gap-2 rounded-xl bg-white/10 px-3 py-4 text-xs font-bold text-white transition hover:bg-white/20"
-                  >
-                    <action.icon className="h-5 w-5" aria-hidden />
-                    {action.label}
-                  </button>
-                ))}
-              </div>
+            <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
+              <h3 className="font-extrabold text-[#0b1c30]">Document Breakdown</h3>
+              {docMetricUnavailable ? (
+                <div className="mt-4 rounded-xl bg-[#f8f9ff] px-4 py-6 text-center text-xs font-semibold text-[#74798a]">
+                  {metricsLoaded ? 'No document data available.' : 'Loading...'}
+                </div>
+              ) : (
+                <ul className="mt-4 space-y-2.5">
+                  <BreakdownRow label="Total" value={totalDocuments} tone="bg-[#3525cd]" />
+                  <BreakdownRow label="Public" value={publicDocuments} tone="bg-emerald-500" />
+                  <BreakdownRow label="Private" value={privateDocuments} tone="bg-slate-400" />
+                  <BreakdownRow label="Hidden" value={hiddenDocuments} tone="bg-amber-500" />
+                </ul>
+              )}
             </article>
 
             <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
-              <h3 className="font-extrabold text-[#0b1c30]">Subject Activity</h3>
-              {subjectActivityItems.length > 0 ? (
-                <ul className="mt-4 space-y-3">
-                  {subjectActivityItems.map((s) => (
-                    <li
-                      key={s.id || s.name || s.subjectName}
-                      className="flex items-center justify-between rounded-xl border border-[#c7c4d8]/25 px-3 py-2.5"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eff4ff] text-[10px] font-extrabold text-[#3525cd]">
-                          {(s.code || s.name || s.subjectName || '?').slice(0, 3).toUpperCase()}
-                        </span>
-                        <span className="text-sm font-bold text-[#0b1c30]">{s.name || s.subjectName}</span>
-                      </div>
-                      <span className="text-xs font-bold text-[#74798a]">
-                        {(s.documentCount ?? s.docs ?? 0).toLocaleString()} docs
-                      </span>
-                    </li>
-                  ))}
+              <h3 className="font-extrabold text-[#0b1c30]">Reports Overview</h3>
+              {metrics?.reports ? (
+                <ul className="mt-4 space-y-2.5">
+                  <BreakdownRow label="Pending" value={metrics.reports.pendingReports} tone="bg-amber-500" />
+                  <BreakdownRow label="Reviewed" value={metrics.reports.reviewedReports} tone="bg-[#3525cd]" />
+                  <BreakdownRow label="Resolved" value={metrics.reports.resolvedReports} tone="bg-emerald-500" />
+                  <BreakdownRow label="Rejected" value={metrics.reports.rejectedReports} tone="bg-red-500" />
                 </ul>
               ) : (
-                <div className="mt-4 rounded-xl bg-[#f8f9ff] px-4 py-6 text-center">
-                  <p className="text-sm font-extrabold text-[#0b1c30]">Subject activity not available</p>
-                  <p className="mt-1 text-xs font-semibold text-[#74798a]">
-                    The current metrics API does not return subject activity yet.
-                  </p>
+                <div className="mt-4 rounded-xl bg-[#f8f9ff] px-4 py-6 text-center text-xs font-semibold text-[#74798a]">
+                  {metricsLoaded ? 'No report data available.' : 'Loading...'}
                 </div>
               )}
             </article>
@@ -538,6 +507,20 @@ function CircularProgress({ percent, overLimit = false }) {
   )
 }
 
+function BreakdownRow({ label, value, tone }) {
+  return (
+    <li className="flex items-center justify-between rounded-xl border border-[#c7c4d8]/25 px-3 py-2.5">
+      <span className="flex items-center gap-2.5 text-sm font-bold text-[#0b1c30]">
+        <span className={`h-2.5 w-2.5 rounded-full ${tone}`} />
+        {label}
+      </span>
+      <span className="text-sm font-extrabold text-[#464555]">
+        {value == null ? '—' : value.toLocaleString()}
+      </span>
+    </li>
+  )
+}
+
 function DashboardSmallMetric({ icon: Icon, label, value, note }) {
   return (
     <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
@@ -603,4 +586,12 @@ function formatStorage(gb) {
   if (gb == null || Number.isNaN(gb)) return '—'
   if (gb >= 1024) return `${(gb / 1024).toFixed(2)} TB`
   return `${gb.toFixed(gb >= 100 ? 0 : 1)} GB`
+}
+
+function formatReason(reason) {
+  if (!reason) return '—'
+  return String(reason)
+    .split('_')
+    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(' ')
 }
