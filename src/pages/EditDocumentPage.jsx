@@ -26,15 +26,15 @@ export default function EditDocumentPage() {
 
   useEffect(() => {
     let ignore = false
-    setLoading(true)
-    setLoadError(null)
-    Promise.all([getDocument(id), listSubjects()])
-      .then(([docRes, subjRes]) => {
+    ;(async () => {
+      setLoading(true)
+      setLoadError(null)
+      try {
+        const [docRes, subjRes] = await Promise.all([getDocument(id), listSubjects()])
         if (ignore) return
         if (subjRes.success) setSubjects(subjRes.data)
         if (docRes.success) setDoc(docRes.data)
-      })
-      .catch((err) => {
+      } catch (err) {
         if (ignore) return
         const status = err.response?.status
         if (status === 403) {
@@ -44,10 +44,10 @@ export default function EditDocumentPage() {
         } else {
           setLoadError({ kind: 'error', message: getApiErrorMessage(err, 'Could not load document.') })
         }
-      })
-      .finally(() => {
+      } finally {
         if (!ignore) setLoading(false)
-      })
+      }
+    })()
     return () => {
       ignore = true
     }
@@ -117,6 +117,7 @@ export default function EditDocumentPage() {
               )}
 
               <DocumentEditForm
+                key={doc.id}
                 doc={doc}
                 subjects={subjects}
                 saving={saving}

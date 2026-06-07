@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -33,7 +33,6 @@ function formatDate(value) {
 
 export default function DocumentDetailPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const [doc, setDoc] = useState(null)
   const [preview, setPreview] = useState(null)
   const [subjects, setSubjects] = useState([])
@@ -45,19 +44,15 @@ export default function DocumentDetailPage() {
 
   useEffect(() => {
     let ignore = false
-    setLoading(true)
-    setPreviewLoading(true)
-    setError(null)
-    setPreviewError('')
-    setPreview(null)
-
-    Promise.all([getDocument(id), listSubjects()])
-      .then(([docRes, subjectRes]) => {
+    ;(async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [docRes, subjectRes] = await Promise.all([getDocument(id), listSubjects()])
         if (ignore) return
         if (subjectRes.success) setSubjects(subjectRes.data)
         if (docRes.success) setDoc(docRes.data)
-      })
-      .catch((err) => {
+      } catch (err) {
         if (ignore) return
         const status = err.response?.status
         if (status === 403) {
@@ -67,31 +62,50 @@ export default function DocumentDetailPage() {
         } else {
           setError({ kind: 'error', message: getApiErrorMessage(err, 'Could not load document.') })
         }
-      })
-      .finally(() => {
+      } finally {
         if (!ignore) setLoading(false)
-      })
-
-    getDocumentPreview(id)
-      .then((res) => {
-        if (ignore) return
-        if (res.success) setPreview(res.data)
-        else setPreviewError(res.message || 'Preview is not available for this document.')
-      })
-      .catch((err) => {
-        if (ignore) return
-        const status = err.response?.status
-        if (status === 404) setPreviewError('Document preview was not found.')
-        else setPreviewError(getApiErrorMessage(err, 'Preview is not available.'))
-      })
-      .finally(() => {
-        if (!ignore) setPreviewLoading(false)
-      })
+      }
+    })()
 
     return () => {
       ignore = true
     }
   }, [id])
+
+  useEffect(() => {
+    if (!doc) return undefined
+    let ignore = false
+    let objectUrl = null
+
+    ;(async () => {
+      try {
+        const res = await getDocumentPreview(doc)
+        if (ignore) return
+        if (res.success) {
+          if (res.data?.type === 'pdf') objectUrl = res.data.previewUrl
+          setPreview(res.data)
+          setPreviewError('')
+        } else {
+          setPreview(null)
+          setPreviewError(res.message || 'Preview is not available for this document.')
+        }
+      } catch (err) {
+        if (ignore) return
+        setPreview(null)
+        const status = err.response?.status
+        if (status === 404) setPreviewError('Document preview was not found.')
+        else if (status === 403) setPreviewError('You do not have permission to preview this document.')
+        else setPreviewError(getApiErrorMessage(err, 'Preview is not available.'))
+      } finally {
+        if (!ignore) setPreviewLoading(false)
+      }
+    })()
+
+    return () => {
+      ignore = true
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl)
+    }
+  }, [doc])
 
   const subject = useMemo(
     () => subjects.find((s) => s.id === doc?.subjectId),
@@ -131,8 +145,7 @@ export default function DocumentDetailPage() {
             <div className="mt-3 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={doc.status} />
-                  <VisibilityPill visibility={doc.visibility} />
+                  <VisibilityPill visibility={doc.status} />
                   {subject && <SubjectBadge subject={subject} />}
                 </div>
                 <h1 className="mt-3 text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">
@@ -247,6 +260,11 @@ function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) 
     return (
       <div className="h-[620px] overflow-auto bg-[#0b1c30] p-6 text-sm leading-7 text-slate-100">
         <pre className="whitespace-pre-wrap font-mono">{preview.textContent}</pre>
+        {preview.truncated && (
+          <p className="mt-4 border-t border-slate-600 pt-3 text-xs font-semibold text-slate-400">
+            Preview truncated. Download the file to view the full content.
+          </p>
+        )}
       </div>
     )
   }
@@ -309,20 +327,7 @@ function InfoRow({ label, value }) {
 function SubjectBadge({ subject }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
-      {subject.code} · {subject.name}
-    </span>
-  )
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    APPROVED: 'bg-emerald-50 text-emerald-700',
-    PENDING: 'bg-amber-50 text-amber-700',
-    REJECTED: 'bg-red-50 text-red-700',
-  }
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${map[status] || 'bg-slate-100 text-slate-600'}`}>
-      {status}
+      {subject.name}
     </span>
   )
 }

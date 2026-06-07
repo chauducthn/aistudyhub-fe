@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
-  FileText,
   FolderOpen,
   Loader2,
   Pencil,
@@ -31,6 +30,23 @@ const SUBJECT_COLORS = [
   '#22c55e',
 ]
 
+const NAME_MAX = 120
+
+function deriveCode(name = '') {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
+}
+
+function deriveColor(name = '') {
+  let hash = 0
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return SUBJECT_COLORS[hash % SUBJECT_COLORS.length]
+}
+
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState([])
   const [searchInput, setSearchInput] = useState('')
@@ -43,36 +59,42 @@ export default function SubjectsPage() {
   const [creating, setCreating] = useState(false)
   const [deletingTarget, setDeletingTarget] = useState(null)
 
+  const loadSubjects = useCallback(async () => {
+    try {
+      const res = await listSubjects()
+      if (!res.success) throw new Error(res.message || 'Could not load subjects.')
+      setSubjects(res.data)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not load subjects.'))
+    }
+  }, [])
+
   useEffect(() => {
     let ignore = false
-    setLoading(true)
-    setError('')
-    listSubjects({ search })
-      .then((res) => {
+    ;(async () => {
+      try {
+        const res = await listSubjects()
         if (ignore) return
         if (!res.success) throw new Error(res.message || 'Could not load subjects.')
         setSubjects(res.data)
-      })
-      .catch((err) => {
+        setError('')
+      } catch (err) {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load subjects.'))
-      })
-      .finally(() => {
+      } finally {
         if (!ignore) setLoading(false)
-      })
+      }
+    })()
     return () => {
       ignore = true
     }
-  }, [search])
+  }, [])
 
-  const refresh = async () => {
-    const res = await listSubjects({ search })
-    if (res.success) setSubjects(res.data)
-  }
-
-  const totalDocs = useMemo(
-    () => subjects.reduce((sum, s) => sum + (s.documentCount || 0), 0),
-    [subjects],
-  )
+  const filteredSubjects = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    const sorted = [...subjects].sort((a, b) => a.name.localeCompare(b.name))
+    if (!keyword) return sorted
+    return sorted.filter((s) => s.name.toLowerCase().includes(keyword))
+  }, [subjects, search])
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
@@ -87,9 +109,7 @@ export default function SubjectsPage() {
       if (!res.success) throw new Error(res.message)
       setMessage(`Subject "${res.data.name}" created.`)
       setCreating(false)
-      await refresh()
-    } catch (err) {
-      throw err
+      await loadSubjects()
     } finally {
       setBusyId(null)
     }
@@ -104,9 +124,7 @@ export default function SubjectsPage() {
       if (!res.success) throw new Error(res.message)
       setMessage(`Subject "${res.data.name}" updated.`)
       setEditing(null)
-      await refresh()
-    } catch (err) {
-      throw err
+      await loadSubjects()
     } finally {
       setBusyId(null)
     }
@@ -121,7 +139,7 @@ export default function SubjectsPage() {
       if (!res.success) throw new Error(res.message)
       setMessage(`Subject "${deletingTarget.name}" deleted.`)
       setDeletingTarget(null)
-      await refresh()
+      await loadSubjects()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not delete subject.'))
     } finally {
@@ -138,7 +156,7 @@ export default function SubjectsPage() {
             <p className="mt-2 text-base text-[#464555]">
               {loading
                 ? 'Loading...'
-                : `${subjects.length} subject${subjects.length === 1 ? '' : 's'} · ${totalDocs} document${totalDocs === 1 ? '' : 's'} total.`}
+                : `${subjects.length} subject${subjects.length === 1 ? '' : 's'}.`}
             </p>
           </div>
           <button
@@ -159,7 +177,7 @@ export default function SubjectsPage() {
                 type="search"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search subjects by name, code, or description..."
+                placeholder="Search subjects by name..."
                 className="auth-input pl-10"
               />
             </div>
@@ -218,10 +236,10 @@ export default function SubjectsPage() {
           {loading ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, idx) => (
-                <div key={idx} className="h-44 animate-pulse rounded-2xl bg-white shadow-sm" />
+                <div key={idx} className="h-36 animate-pulse rounded-2xl bg-white shadow-sm" />
               ))}
             </div>
-          ) : subjects.length === 0 ? (
+          ) : filteredSubjects.length === 0 ? (
             <div className="grid place-items-center rounded-2xl border border-[#c7c4d8]/25 bg-white px-6 py-16 text-center shadow-sm">
               <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#eef0ff] text-[#3525cd]">
                 <FolderOpen className="h-7 w-7" />
@@ -258,7 +276,7 @@ export default function SubjectsPage() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {subjects.map((subject) => (
+              {filteredSubjects.map((subject) => (
                 <SubjectCard
                   key={subject.id}
                   subject={subject}
@@ -293,13 +311,7 @@ export default function SubjectsPage() {
         {deletingTarget && (
           <ConfirmDialog
             title={`Delete "${deletingTarget.name}"?`}
-            description={
-              deletingTarget.documentCount > 0
-                ? `This subject has ${deletingTarget.documentCount} document${
-                    deletingTarget.documentCount === 1 ? '' : 's'
-                  }. They will be unassigned from this subject.`
-                : 'This action cannot be undone.'
-            }
+            description="This action cannot be undone. Subjects that still contain documents cannot be deleted."
             confirmLabel="Delete"
             tone="danger"
             busy={busyId === deletingTarget.id}
@@ -313,23 +325,21 @@ export default function SubjectsPage() {
 }
 
 function SubjectCard({ subject, busy, onEdit, onDelete }) {
+  const color = deriveColor(subject.name)
+  const code = deriveCode(subject.name)
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div
-        className="absolute inset-x-0 top-0 h-1.5"
-        style={{ backgroundColor: subject.color || '#3525cd' }}
-      />
+      <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: color }} />
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span
             className="grid h-12 w-12 place-items-center rounded-xl text-sm font-extrabold text-white"
-            style={{ backgroundColor: subject.color || '#3525cd' }}
+            style={{ backgroundColor: color }}
           >
-            {subject.code}
+            {code}
           </span>
           <div>
             <h3 className="text-base font-extrabold leading-tight text-[#0b1c30]">{subject.name}</h3>
-            <p className="text-xs font-semibold text-[#74798a]">{subject.documentCount} document{subject.documentCount === 1 ? '' : 's'}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -341,11 +351,7 @@ function SubjectCard({ subject, busy, onEdit, onDelete }) {
           </IconButton>
         </div>
       </div>
-      <p className="mt-4 line-clamp-3 min-h-[3.75rem] text-sm leading-6 text-[#464555]">
-        {subject.description || 'No description provided.'}
-      </p>
       <div className="mt-4 flex items-center gap-2 border-t border-[#c7c4d8]/20 pt-3 text-xs font-semibold text-[#74798a]">
-        <FileText className="h-3.5 w-3.5" />
         Created {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(subject.createdAt))}
       </div>
     </article>
@@ -373,50 +379,33 @@ function IconButton({ children, label, onClick, disabled, tone = 'default' }) {
 
 function SubjectFormModal({ title, submitLabel, initial, onClose, onSubmit, saving }) {
   const [name, setName] = useState(initial?.name || '')
-  const [code, setCode] = useState(initial?.code || '')
-  const [description, setDescription] = useState(initial?.description || '')
-  const [color, setColor] = useState(initial?.color || SUBJECT_COLORS[0])
-  const [errors, setErrors] = useState({ name: '', code: '', form: '' })
+  const [errors, setErrors] = useState({ name: '', form: '' })
 
   const validate = () => {
-    const next = { name: '', code: '', form: '' }
+    const next = { name: '', form: '' }
     if (!name.trim()) next.name = 'Subject name is required.'
-    if (!code.trim()) next.code = 'Subject code is required.'
-    else if (!/^[A-Za-z0-9]{2,8}$/.test(code.trim()))
-      next.code = 'Code must be 2-8 letters or numbers.'
+    else if (name.trim().length > NAME_MAX) next.name = `Name must be at most ${NAME_MAX} characters.`
     setErrors(next)
-    return !next.name && !next.code
+    return !next.name
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!validate()) return
     try {
-      await onSubmit({
-        name: name.trim(),
-        code: code.trim().toUpperCase(),
-        description: description.trim(),
-        color,
-      })
+      await onSubmit({ name: name.trim() })
     } catch (err) {
       const status = err.response?.status
       const message = err.response?.data?.message || err.message || 'Could not save subject.'
-      if (status === 409 && /code/i.test(message)) {
-        setErrors({ name: '', code: message, form: '' })
-      } else if (status === 409 && /name/i.test(message)) {
-        setErrors({ name: message, code: '', form: '' })
+      if ((status === 400 || status === 409) && /name/i.test(message)) {
+        setErrors({ name: message, form: '' })
       } else {
-        setErrors({ name: '', code: '', form: message })
+        setErrors({ name: '', form: message })
       }
     }
   }
 
-  const dirty = initial
-    ? name.trim() !== initial.name ||
-      code.trim().toUpperCase() !== initial.code ||
-      description.trim() !== (initial.description || '') ||
-      color !== initial.color
-    : !!(name.trim() || code.trim() || description.trim())
+  const dirty = initial ? name.trim() !== initial.name : !!name.trim()
 
   return (
     <Modal onClose={onClose}>
@@ -445,71 +434,20 @@ function SubjectFormModal({ title, submitLabel, initial, onClose, onSubmit, savi
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
-          <Field label="Name" required error={errors.name}>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (errors.name && e.target.value.trim()) setErrors((er) => ({ ...er, name: '' }))
-              }}
-              maxLength={80}
-              placeholder="e.g. Software Engineering"
-              className={`auth-input ${errors.name ? 'auth-input--invalid' : ''}`}
-              required
-            />
-          </Field>
-          <Field label="Code" required error={errors.code} hint="2-8 chars">
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value.toUpperCase())
-                if (errors.code && /^[A-Z0-9]{2,8}$/.test(e.target.value.trim().toUpperCase()))
-                  setErrors((er) => ({ ...er, code: '' }))
-              }}
-              maxLength={8}
-              placeholder="SE"
-              className={`auth-input uppercase ${errors.code ? 'auth-input--invalid' : ''}`}
-              required
-            />
-          </Field>
-        </div>
-
-        <Field label="Description" hint="Optional. Help yourself remember what this subject covers.">
-          <textarea
-            rows={4}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={300}
-            placeholder="What does this subject cover?"
-            className="auth-input min-h-[100px] resize-y py-3"
+        <Field label="Name" required error={errors.name}>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              if (errors.name && e.target.value.trim()) setErrors((er) => ({ ...er, name: '' }))
+            }}
+            maxLength={NAME_MAX}
+            placeholder="e.g. Software Engineering"
+            className={`auth-input ${errors.name ? 'auth-input--invalid' : ''}`}
+            required
+            autoFocus
           />
-          <p className="mt-1 text-right text-[11px] font-semibold text-[#74798a]">
-            {description.length}/300
-          </p>
-        </Field>
-
-        <Field label="Color">
-          <div className="flex flex-wrap gap-2">
-            {SUBJECT_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                aria-label={`Pick ${c}`}
-                className={`relative h-9 w-9 rounded-xl transition ${
-                  color === c ? 'ring-2 ring-[#0b1c30] ring-offset-2' : 'hover:scale-105'
-                }`}
-                style={{ backgroundColor: c }}
-              >
-                {color === c && (
-                  <CheckCircle2 className="absolute inset-0 m-auto h-4 w-4 text-white" />
-                )}
-              </button>
-            ))}
-          </div>
         </Field>
 
         <div className="flex justify-end gap-3 border-t border-[#c7c4d8]/30 pt-4">

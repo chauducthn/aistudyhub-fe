@@ -28,13 +28,6 @@ import { getApiErrorMessage } from '../utils/apiError'
 
 const PAGE_SIZE = 8
 
-const STATUS_OPTIONS = [
-  { value: 'ALL', label: 'All statuses' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'REJECTED', label: 'Rejected' },
-]
-
 const VISIBILITY_OPTIONS = [
   { value: 'ALL', label: 'All visibility' },
   { value: 'PUBLIC', label: 'Public' },
@@ -66,7 +59,6 @@ export default function MyDocumentsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [subjectId, setSubjectId] = useState('')
-  const [status, setStatus] = useState('ALL')
   const [visibility, setVisibility] = useState('ALL')
   const [page, setPage] = useState(0)
   const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 })
@@ -86,9 +78,14 @@ export default function MyDocumentsPage() {
 
   useEffect(() => {
     let ignore = false
-    listSubjects().then((res) => {
-      if (!ignore && res.success) setSubjects(res.data)
-    })
+    ;(async () => {
+      try {
+        const res = await listSubjects()
+        if (!ignore && res.success) setSubjects(res.data)
+      } catch {
+        /* subjects are optional for this page */
+      }
+    })()
     return () => {
       ignore = true
     }
@@ -96,24 +93,24 @@ export default function MyDocumentsPage() {
 
   useEffect(() => {
     let ignore = false
-    setLoading(true)
-    setError('')
-    listMyDocuments({ search, subjectId, status, visibility, page, size: PAGE_SIZE })
-      .then((res) => {
+    ;(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const res = await listMyDocuments({ search, subjectId, visibility, page, size: PAGE_SIZE })
         if (ignore) return
         if (!res.success) throw new Error(res.message || 'Could not load documents.')
         setData(res.data)
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load documents.'))
-      })
-      .finally(() => {
+      } finally {
         if (!ignore) setLoading(false)
-      })
+      }
+    })()
     return () => {
       ignore = true
     }
-  }, [search, subjectId, status, visibility, page])
+  }, [search, subjectId, visibility, page])
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
@@ -125,13 +122,12 @@ export default function MyDocumentsPage() {
     setSearchInput('')
     setSearch('')
     setSubjectId('')
-    setStatus('ALL')
     setVisibility('ALL')
     setPage(0)
   }
 
   const refresh = async () => {
-    const res = await listMyDocuments({ search, subjectId, status, visibility, page, size: PAGE_SIZE })
+    const res = await listMyDocuments({ search, subjectId, visibility, page, size: PAGE_SIZE })
     if (res.success) setData(res.data)
   }
 
@@ -139,9 +135,9 @@ export default function MyDocumentsPage() {
     setBusyId(doc.id)
     setError('')
     try {
-      const res = await toggleDocumentVisibility(doc.id)
+      const res = await toggleDocumentVisibility(doc)
       if (!res.success) throw new Error(res.message)
-      setMessage(`${res.data.title} is now ${res.data.visibility.toLowerCase()}.`)
+      setMessage(`${res.data.title} is now ${(res.data.status || '').toLowerCase()}.`)
       await refresh()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not change visibility.'))
@@ -152,9 +148,12 @@ export default function MyDocumentsPage() {
 
   const handleDownload = async (doc) => {
     setBusyId(doc.id)
+    setError('')
     try {
       await downloadDocument(doc)
       setMessage(`Downloading ${doc.fileName}...`)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not download document.'))
     } finally {
       setBusyId(null)
     }
@@ -203,7 +202,7 @@ export default function MyDocumentsPage() {
     }
   }
 
-  const filtersActive = !!search || !!subjectId || status !== 'ALL' || visibility !== 'ALL'
+  const filtersActive = !!search || !!subjectId || visibility !== 'ALL'
 
   return (
     <DashboardShell>
@@ -225,7 +224,7 @@ export default function MyDocumentsPage() {
         </div>
 
         <section className="mt-6 rounded-2xl border border-[#c7c4d8]/25 bg-white p-4 shadow-sm">
-          <form onSubmit={handleSearchSubmit} className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+          <form onSubmit={handleSearchSubmit} className="grid gap-3 lg:grid-cols-[1.6fr_1fr_1fr_auto]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#74798a]" />
               <input
@@ -248,20 +247,6 @@ export default function MyDocumentsPage() {
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value)
-                setPage(0)
-              }}
-              className="auth-input"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
                 </option>
               ))}
             </select>
@@ -329,7 +314,6 @@ export default function MyDocumentsPage() {
                 <tr>
                   <th className="px-6 py-3">Document</th>
                   <th className="px-4 py-3">Subject</th>
-                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Visibility</th>
                   <th className="px-4 py-3">Size</th>
                   <th className="px-4 py-3">Date</th>
@@ -340,14 +324,14 @@ export default function MyDocumentsPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, idx) => (
                     <tr key={idx} className="border-t border-[#c7c4d8]/15">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={6} className="px-6 py-4">
                         <div className="h-8 w-full animate-pulse rounded-lg bg-[#eef0ff]" />
                       </td>
                     </tr>
                   ))
                 ) : data.content.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-16">
+                    <td colSpan={6} className="px-6 py-16">
                       <div className="flex flex-col items-center gap-3 text-center">
                         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#eef0ff] text-[#3525cd]">
                           <FileText className="h-6 w-6" />
@@ -402,10 +386,7 @@ export default function MyDocumentsPage() {
                         <SubjectBadge subject={subjectMap.get(doc.subjectId)} />
                       </td>
                       <td className="px-4 py-4">
-                        <StatusBadge status={doc.status} />
-                      </td>
-                      <td className="px-4 py-4">
-                        <VisibilityPill visibility={doc.visibility} />
+                        <VisibilityPill visibility={doc.status} />
                       </td>
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatBytes(doc.fileSize)}</td>
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatDate(doc.uploadedAt)}</td>
@@ -433,12 +414,12 @@ export default function MyDocumentsPage() {
                             <Pencil className="h-4 w-4" />
                           </ActionIconButton>
                           <ActionIconButton
-                            label={doc.visibility === 'PUBLIC' ? 'Make private' : 'Make public'}
+                            label={doc.status === 'PUBLIC' ? 'Make private' : 'Make public'}
                             onClick={() => handleToggleVisibility(doc)}
                             disabled={busyId === doc.id}
-                            tone={doc.visibility === 'PUBLIC' ? 'active' : 'default'}
+                            tone={doc.status === 'PUBLIC' ? 'active' : 'default'}
                           >
-                            {doc.visibility === 'PUBLIC' ? (
+                            {doc.status === 'PUBLIC' ? (
                               <Eye className="h-4 w-4" />
                             ) : (
                               <EyeOff className="h-4 w-4" />
@@ -522,22 +503,7 @@ function SubjectBadge({ subject }) {
   if (!subject) return <span className="text-xs font-semibold text-[#74798a]">—</span>
   return (
     <span className="inline-flex items-center gap-1.5 rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
-      {subject.code}
-      <span className="font-semibold text-[#3525cd]/70">·</span>
-      <span className="font-bold">{subject.name}</span>
-    </span>
-  )
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    APPROVED: 'bg-emerald-50 text-emerald-700',
-    PENDING: 'bg-amber-50 text-amber-700',
-    REJECTED: 'bg-red-50 text-red-700',
-  }
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${map[status] || 'bg-slate-100 text-slate-600'}`}>
-      {status}
+      {subject.name}
     </span>
   )
 }
@@ -595,6 +561,7 @@ function EditDocumentModal({ doc, subjects, onClose, onSave, saving }) {
       </div>
 
       <DocumentEditForm
+        key={doc.id}
         doc={doc}
         subjects={subjects}
         saving={saving}
