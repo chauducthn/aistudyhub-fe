@@ -3,12 +3,18 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminUsersPage from './pages/AdminUsersPage'
+import DocumentDetailPage from './pages/DocumentDetailPage'
+import EditDocumentPage from './pages/EditDocumentPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import MyDocumentsPage from './pages/MyDocumentsPage'
+import NotFoundPage from './pages/NotFoundPage'
 import ProfileSettingsPage from './pages/ProfileSettingsPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import SubjectsPage from './pages/SubjectsPage'
+import UploadDocumentPage from './pages/UploadDocumentPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import { ROLES } from './utils/roles'
 
@@ -37,6 +43,47 @@ export default function App() {
           <Route path="/student/dashboard" element={<Navigate to="/dashboard" replace />} />
 
           <Route
+            path="/upload"
+            element={
+              <ProtectedRoute>
+                <UploadDocumentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents"
+            element={
+              <ProtectedRoute>
+                <MyDocumentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents/:id"
+            element={
+              <ProtectedRoute>
+                <DocumentDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditDocumentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subjects"
+            element={
+              <ProtectedRoute>
+                <SubjectsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/dashboard"
             element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
@@ -63,7 +110,7 @@ export default function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

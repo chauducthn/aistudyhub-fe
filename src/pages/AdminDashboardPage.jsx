@@ -2,54 +2,87 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
+  CheckCircle2,
   Database,
+  Eye,
   FileText,
-  TrendingUp,
+  FolderOpen,
+  Lock,
+  MessageSquare,
+  Sparkles,
   Users,
+  Zap,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import { useAuth } from '../context/useAuth'
-import { getDashboardMetrics, listUsers } from '../api/adminApi'
+import { getDashboardMetrics, listReports, listUsers } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
-
-const secondaryMetrics = [
-  { label: 'Hidden Docs', value: '58' },
-  { label: 'Total Subjects', value: '24' },
-  { label: 'AI Sessions', value: '45,901' },
-  { label: 'Storage Used', value: '4.2 TB' },
-]
-
-const pendingDocs = [
-  { title: 'Neural Networks Thesis', user: 'Alex Chen', subject: 'AI', size: '4.2 MB', status: 'High Priority' },
-  { title: 'Database Normalization', user: 'Maria Lopez', subject: 'Database', size: '1.1 MB', status: 'Pending Review' },
-]
 
 export default function AdminDashboardPage() {
   const { user } = useAuth()
   const [metrics, setMetrics] = useState(null)
   const [recentUsers, setRecentUsers] = useState([])
+  const [pendingReports, setPendingReports] = useState([])
+  const [pendingReportsTotal, setPendingReportsTotal] = useState(0)
   const [error, setError] = useState('')
+  const [showHealthToast, setShowHealthToast] = useState(true)
 
   useEffect(() => {
-    const load = async () => {
+    let ignore = false
+    ;(async () => {
       try {
-        const [metricsRes, usersRes] = await Promise.all([
+        const [metricsRes, usersRes, reportsRes] = await Promise.all([
           getDashboardMetrics(),
-          listUsers({ page: 0, size: 5 }),
+          listUsers({ page: 0, size: 7 }),
+          listReports({ status: 'PENDING', page: 0, size: 5 }),
         ])
+        if (ignore) return
         if (metricsRes.success) setMetrics(metricsRes.data)
         if (usersRes.success) setRecentUsers(usersRes.data?.content || [])
+        if (reportsRes.success) {
+          setPendingReports(reportsRes.data?.content || [])
+          setPendingReportsTotal(reportsRes.data?.totalElements ?? 0)
+        }
       } catch (err) {
-        setError(getApiErrorMessage(err, 'Could not load admin dashboard.'))
+        if (!ignore) setError(getApiErrorMessage(err, 'Could not load admin dashboard.'))
       }
+    })()
+    return () => {
+      ignore = true
     }
-    void load()
   }, [])
 
-  const storage = metrics?.storage
-  const growth = metrics?.userGrowth || []
-  const maxGrowth = Math.max(...growth.map((g) => g.newUsers), 1)
   const firstName = user?.fullName?.split(' ')[0] || 'Admin'
+  const usersToShow = recentUsers.map(mapApiUser)
+
+  const totalUsers = metrics?.totalUsers ?? 0
+  const activeUsers = metrics?.activeUsers ?? 0
+  const lockedUsers = metrics?.lockedUsers ?? 0
+  const newUsers7d = metrics?.newUsersLast7Days ?? 0
+  const chatbotApiCalls = metrics?.chatbotApiCalls ?? 0
+
+  const storage = metrics?.storage
+  const storagePercent = storage?.percentUsed != null ? Math.round(storage.percentUsed) : 0
+  const storageUsedGb = storage?.usedGb ?? 0
+  const storageLimitGb = storage?.limitGb ?? 0
+  const storageOverLimit = storage?.overLimit ?? false
+
+  const userGrowth = metrics?.userGrowth ?? []
+  const maxGrowth = Math.max(...userGrowth.map((g) => g.newUsers), 1)
+  const totalUsersTrend = `+${newUsers7d.toLocaleString()} (7d)`
+
+  const totalDocuments = metrics?.documents?.totalDocuments
+  const publicDocuments = metrics?.documents?.publicDocuments
+  const privateDocuments = metrics?.documents?.privateDocuments
+  const hiddenDocuments = metrics?.documents?.hiddenDocuments
+  const totalSubjects = metrics?.subjects?.totalSubjects
+  const pendingReviewCount = metrics?.reports?.pendingReports
+
+  const hasChatbot = chatbotApiCalls > 0
+  const metricsLoaded = metrics != null
+  const docMetricUnavailable = totalDocuments == null
+  const pendingMetricUnavailable = pendingReviewCount == null
+  const subjectMetricUnavailable = totalSubjects == null
 
   return (
     <DashboardShell type="admin">
@@ -60,256 +93,505 @@ export default function AdminDashboardPage() {
               Welcome back, {firstName}!
             </h1>
             <p className="mt-2 text-base text-[#464555]">
-              Monitor system performance, user activity, and storage usage.
+              Monitor system activity, review documents, and manage AI Study Hub.
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_8px_20px_rgba(53,37,205,0.25)]"
+          <Link
+            to="/admin/users"
+            className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_8px_20px_rgba(53,37,205,0.25)]"
           >
-            + New Research Project
-          </button>
+            <Users className="h-4 w-4" />
+            Manage Users
+          </Link>
         </div>
 
         {error && (
           <div className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>
         )}
 
-        {metrics && (
-          <>
-            <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <MetricCard
-                icon={Users}
-                label="Total Users"
-                value={metrics.totalUsers.toLocaleString()}
-                trend="+8%"
-              />
-              <MetricCard
-                icon={TrendingUp}
-                label="Active Users"
-                value={metrics.activeUsers.toLocaleString()}
-                trend="+12%"
-              />
-              <MetricCard
-                icon={AlertTriangle}
-                label="Locked Accounts"
-                value={metrics.lockedUsers.toLocaleString()}
-                tag={metrics.lockedUsers > 0 ? 'Alert' : undefined}
-              />
-              <MetricCard
-                icon={Users}
-                label="New Users (7d)"
-                value={metrics.newUsersLast7Days.toLocaleString()}
-                trend="+5%"
-              />
-              <MetricCard icon={FileText} label="Pending Review" value="18" action="Review" />
-            </section>
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard
+            icon={Users}
+            label="Total Users"
+            value={totalUsers.toLocaleString()}
+            tag={{ text: totalUsersTrend, tone: 'green' }}
+          />
+          <MetricCard
+            icon={Zap}
+            label="Active Users"
+            value={activeUsers.toLocaleString()}
+            tag={{ text: 'Daily', tone: 'gray' }}
+          />
+          <MetricCard
+            icon={Lock}
+            label="Locked"
+            value={lockedUsers.toLocaleString()}
+            tag={{ text: lockedUsers > 0 ? 'Alert' : 'OK', tone: lockedUsers > 0 ? 'red' : 'gray' }}
+          />
+          <MetricCard
+            icon={FileText}
+            label="Total Docs"
+            value={docMetricUnavailable ? 'N/A' : totalDocuments.toLocaleString()}
+            tag={{ text: docMetricUnavailable ? 'Awaiting API' : 'Live', tone: 'gray' }}
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Pending Review"
+            value={pendingMetricUnavailable ? 'N/A' : pendingReviewCount.toLocaleString()}
+            tag={{
+              text: pendingMetricUnavailable ? 'Awaiting API' : `${pendingReviewCount.toLocaleString()} Pending`,
+              tone: pendingMetricUnavailable ? 'gray' : pendingReviewCount > 0 ? 'urgent' : 'green',
+            }}
+            highlight={!pendingMetricUnavailable && pendingReviewCount > 0}
+          />
+        </section>
 
-            <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {secondaryMetrics.map((m) => (
-                <article
-                  key={m.label}
-                  className="rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm"
-                >
-                  <p className="text-xs font-bold uppercase tracking-wide text-[#74798a]">{m.label}</p>
-                  <p className="mt-1 text-xl font-extrabold text-[#0b1c30]">{m.value}</p>
-                </article>
-              ))}
-            </section>
+        <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <DashboardSmallMetric
+            icon={Eye}
+            label="Hidden Docs"
+            value={hiddenDocuments == null ? 'N/A' : hiddenDocuments.toLocaleString()}
+            note={hiddenDocuments == null ? 'Awaiting API' : 'Live'}
+          />
+          <DashboardSmallMetric
+            icon={FolderOpen}
+            label="Total Subjects"
+            value={subjectMetricUnavailable ? 'N/A' : totalSubjects.toLocaleString()}
+            note={subjectMetricUnavailable ? 'Awaiting API' : 'Live'}
+          />
+          <DashboardSmallMetric
+            icon={MessageSquare}
+            label="AI Sessions"
+            value={hasChatbot ? chatbotApiCalls.toLocaleString() : 'N/A'}
+            note={hasChatbot ? 'Live' : 'Not implemented yet'}
+          />
+          <DashboardSmallMetric
+            icon={Database}
+            label="Storage Used"
+            value={formatStorage(storageUsedGb)}
+            note="Live"
+          />
+        </section>
 
-            <section className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-              <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-extrabold text-[#0b1c30]">System Activity Overview</h2>
-                    <p className="text-sm text-[#74798a]">New users per day (last 7 days)</p>
-                  </div>
-                  <span className="rounded-lg bg-[#eff4ff] px-3 py-1 text-xs font-bold text-[#3525cd]">
-                    This Month
+        <section className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+          <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#0b1c30]">New User Growth</h2>
+                <p className="text-sm text-[#74798a]">New sign-ups per day</p>
+              </div>
+              <span className="rounded-lg bg-[#eff4ff] px-3 py-1 text-xs font-bold text-[#3525cd]">
+                Last 7 Days
+              </span>
+            </div>
+            {userGrowth.length > 0 ? (
+              <>
+                <div className="mt-8 flex h-48 items-end gap-3 border-t border-[#c7c4d8]/20 pt-4">
+                  {userGrowth.map((day) => {
+                    const usersHeight = Math.max(8, (day.newUsers / maxGrowth) * 150)
+                    const labelDate = new Date(day.date)
+                    const weekday = Number.isNaN(labelDate.getTime())
+                      ? day.date
+                      : labelDate.toLocaleDateString(undefined, { weekday: 'short' })
+                    return (
+                      <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
+                        <span className="text-[10px] font-bold text-[#3525cd]">{day.newUsers}</span>
+                        <div
+                          className="w-full max-w-[28px] rounded-t-md bg-[#3525cd]"
+                          style={{ height: `${usersHeight}px` }}
+                          title={`${day.newUsers} new users`}
+                        />
+                        <span className="text-[10px] font-bold text-[#74798a]">{weekday}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-4 flex items-center gap-6 text-xs font-semibold text-[#74798a]">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#3525cd]" />
+                    New Users
                   </span>
                 </div>
-                <div className="mt-8 flex h-48 items-end gap-2 border-t border-[#c7c4d8]/20 pt-4">
-                  {growth.map((day) => (
-                    <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
-                      <div
-                        className="w-full max-w-[40px] rounded-t-lg bg-[#3525cd]"
-                        style={{ height: `${Math.max(16, (day.newUsers / maxGrowth) * 140)}px` }}
-                        title={`${day.newUsers} users`}
-                      />
-                      <span className="text-[10px] font-bold text-[#74798a]">
-                        {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </article>
-
-              {storage && (
-                <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
-                  <h2 className="text-lg font-extrabold text-[#0b1c30]">Storage Capacity</h2>
-                  <p className="text-sm text-[#74798a]">System storage usage</p>
-                  <div className="relative mx-auto mt-8 h-40 w-40">
-                    <div
-                      className={`absolute inset-0 rounded-full border-[12px] ${
-                        storage.overLimit ? 'border-red-400' : 'border-[#3525cd]'
-                      } border-r-[#57dffe] border-b-[#57dffe]/60 border-l-[#3525cd]/40`}
-                    />
-                    <div className="absolute inset-4 grid place-items-center rounded-full bg-white text-center">
-                      <div className="text-3xl font-extrabold text-[#0b1c30]">{storage.percentUsed}%</div>
-                      <div className="text-xs font-semibold text-[#74798a]">Capacity</div>
-                    </div>
-                  </div>
-                  <ul className="mt-6 space-y-2 text-sm font-semibold text-[#464555]">
-                    <li className="flex justify-between">
-                      <span>PDF Documents</span>
-                      <span>{storage.usedGb} GB</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Office / Doc</span>
-                      <span>—</span>
-                    </li>
-                  </ul>
-                </article>
-              )}
-            </section>
-          </>
-        )}
-
-        <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-          <article className="overflow-hidden rounded-2xl border border-[#c7c4d8]/20 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-[#c7c4d8]/20 px-6 py-4">
-              <h2 className="text-lg font-extrabold text-[#0b1c30]">Pending Document Review</h2>
-              <button type="button" className="text-sm font-bold text-[#3525cd]">
-                View All Alerts
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-left text-sm">
-                <thead className="bg-[#eff4ff] text-xs font-bold uppercase text-[#74798a]">
-                  <tr>
-                    <th className="px-6 py-3">Title</th>
-                    <th className="px-4 py-3">Uploaded By</th>
-                    <th className="px-4 py-3">Subject</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingDocs.map((doc) => (
-                    <tr key={doc.title} className="border-t border-[#c7c4d8]/15">
-                      <td className="px-6 py-4 font-semibold">{doc.title}</td>
-                      <td className="px-4 py-4 text-[#464555]">{doc.user}</td>
-                      <td className="px-4 py-4">
-                        <span className="rounded-lg bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
-                          {doc.subject}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`rounded-lg px-2 py-1 text-xs font-bold ${
-                            doc.status === 'High Priority'
-                              ? 'bg-red-50 text-red-600'
-                              : 'bg-[#e8e3ff] text-[#3525cd]'
-                          }`}
-                        >
-                          {doc.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              </>
+            ) : (
+              <div className="mt-6 rounded-xl bg-[#f8f9ff] px-4 py-10 text-center text-sm font-semibold text-[#74798a]">
+                {metricsLoaded ? 'No new users in the last 7 days.' : 'Loading user growth...'}
+              </div>
+            )}
           </article>
 
-          <div className="space-y-4">
-            <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
-              <h3 className="font-extrabold text-[#0b1c30]">Quick Admin Actions</h3>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {['Invite Admin', 'Backup DB', 'Broadcast', 'Maintenance'].map((action) => (
-                  <button
-                    key={action}
-                    type="button"
-                    className="rounded-xl bg-[#3525cd]/10 px-3 py-4 text-xs font-bold text-[#3525cd] hover:bg-[#3525cd]/15"
-                  >
-                    <Database className="mx-auto mb-2 h-5 w-5" aria-hidden />
-                    {action}
-                  </button>
-                ))}
+          <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-extrabold text-[#0b1c30]">Storage Capacity</h2>
+            <p className="text-sm text-[#74798a]">Infrastructure Health</p>
+            <div className="relative mx-auto mt-6 h-44 w-44">
+              <CircularProgress percent={storagePercent} overLimit={storageOverLimit} />
+              <div className="absolute inset-0 grid place-items-center text-center">
+                <div>
+                  <div className={`text-3xl font-extrabold ${storageOverLimit ? 'text-red-600' : 'text-[#0b1c30]'}`}>
+                    {storagePercent}%
+                  </div>
+                  <div className="text-xs font-semibold text-[#74798a]">
+                    {formatStorage(storageUsedGb)} / {formatStorage(storageLimitGb)}
+                  </div>
+                </div>
               </div>
-            </article>
-
-            <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
-              <h3 className="font-extrabold text-[#0b1c30]">Subject Summary</h3>
-              <ul className="mt-4 space-y-3 text-sm">
-                {['Software Engineering', 'Database Systems', 'Artificial Intelligence'].map((s, i) => (
-                  <li key={s} className="flex justify-between font-semibold text-[#464555]">
-                    <span>{s}</span>
-                    <span className="text-[#3525cd]">{[1245, 890, 2100][i]} docs</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          </div>
+            </div>
+            <div className="mt-6 rounded-xl bg-[#f8f9ff] px-4 py-3 text-sm font-semibold text-[#464555]">
+              Storage breakdown by document type is not available from the current metrics API.
+            </div>
+          </article>
         </section>
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-[#c7c4d8]/20 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-[#c7c4d8]/20 px-6 py-4">
-            <h2 className="text-lg font-extrabold text-[#0b1c30]">Recent Users</h2>
+            <div>
+              <h2 className="text-lg font-extrabold text-[#0b1c30]">Pending Document Reports</h2>
+              <p className="text-sm text-[#74798a]">
+                {pendingReportsTotal > 0
+                  ? `${pendingReportsTotal.toLocaleString()} report${pendingReportsTotal === 1 ? '' : 's'} awaiting review`
+                  : 'User-submitted reports awaiting review'}
+              </p>
+            </div>
             <Link to="/admin/users" className="text-sm font-bold text-[#3525cd]">
-              Manage Users
+              View All
             </Link>
           </div>
-          {recentUsers.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-[#74798a]">No users loaded.</p>
-          ) : (
-            recentUsers.map((u) => (
-              <div
-                key={u.id}
-                className="grid grid-cols-[1fr_100px_100px] gap-4 border-t border-[#c7c4d8]/15 px-6 py-4 text-sm"
-              >
-                <div>
-                  <p className="font-semibold text-[#0b1c30]">{u.fullName}</p>
-                  <p className="text-xs text-[#74798a]">{u.email}</p>
-                </div>
-                <span className="font-semibold text-[#464555]">{u.role}</span>
-                <span
-                  className={`font-bold ${
-                    u.status === 'LOCKED' ? 'text-red-600' : 'text-emerald-600'
-                  }`}
-                >
-                  {u.status}
-                </span>
-              </div>
-            ))
-          )}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead className="bg-[#f5f7ff] text-xs font-bold uppercase tracking-wide text-[#74798a]">
+                <tr>
+                  <th className="px-6 py-3">Document</th>
+                  <th className="px-4 py-3">Reported By</th>
+                  <th className="px-4 py-3">Reason</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingReports.length > 0 ? (
+                  pendingReports.map((report) => (
+                    <tr key={report.id} className="border-t border-[#c7c4d8]/15">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-10 w-10 place-items-center rounded-lg bg-red-50 text-red-500">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <p className="font-extrabold text-[#0b1c30]">{report.documentTitle || `Document #${report.documentId}`}</p>
+                            <p className="max-w-xs truncate text-xs text-[#74798a]">{report.description || '—'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{report.reporterEmail || '—'}</td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
+                          {formatReason(report.reason)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-[#464555]">{formatDate(report.createdAt)}</td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
+                          {report.status || 'PENDING'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-[#c7c4d8]/15">
+                    <td colSpan="5" className="px-6 py-10 text-center">
+                      <p className="font-extrabold text-[#0b1c30]">No documents pending review</p>
+                      <p className="mt-1 text-sm text-[#74798a]">
+                        There are no user-submitted reports awaiting review.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
-        <div className="fixed bottom-6 right-6 hidden rounded-xl bg-[#0b1c30] px-4 py-3 text-sm font-semibold text-white shadow-lg lg:flex lg:items-center lg:gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-400" />
-          System health check completed successfully.
-        </div>
+        <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+          <article className="overflow-hidden rounded-2xl border border-[#c7c4d8]/20 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#c7c4d8]/20 px-6 py-4">
+              <h2 className="text-lg font-extrabold text-[#0b1c30]">Recent Users</h2>
+              <Link
+                to="/admin/users"
+                className="rounded-lg border border-[#c7c4d8]/40 px-3 py-1.5 text-sm font-bold text-[#0b1c30] hover:bg-[#eff4ff]"
+              >
+                Manage Users
+              </Link>
+            </div>
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#f5f7ff] text-xs font-bold uppercase tracking-wide text-[#74798a]">
+                <tr>
+                  <th className="px-6 py-3">Name</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usersToShow.length > 0 ? (
+                  usersToShow.map((u) => (
+                    <tr key={u.id} className="border-t border-[#c7c4d8]/15">
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#e8e3ff] text-xs font-extrabold text-[#3525cd]">
+                            {u.initials}
+                          </span>
+                          <div>
+                            <p className="font-extrabold text-[#0b1c30]">{u.fullName}</p>
+                            <p className="text-xs text-[#74798a]">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 font-semibold text-[#464555]">{u.role}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              u.status === 'Locked' ? 'bg-red-500' : 'bg-emerald-500'
+                            }`}
+                          />
+                          <span className={u.status === 'Locked' ? 'text-red-600' : 'text-emerald-600'}>
+                            {u.status}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs font-semibold text-[#74798a]">{u.joined}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-[#c7c4d8]/15">
+                    <td colSpan="4" className="px-6 py-10 text-center text-sm font-semibold text-[#74798a]">
+                      {metricsLoaded ? 'No users found.' : 'Loading users...'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </article>
+
+          <div className="space-y-4">
+            <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
+              <h3 className="font-extrabold text-[#0b1c30]">Document Breakdown</h3>
+              {docMetricUnavailable ? (
+                <div className="mt-4 rounded-xl bg-[#f8f9ff] px-4 py-6 text-center text-xs font-semibold text-[#74798a]">
+                  {metricsLoaded ? 'No document data available.' : 'Loading...'}
+                </div>
+              ) : (
+                <ul className="mt-4 space-y-2.5">
+                  <BreakdownRow label="Total" value={totalDocuments} tone="bg-[#3525cd]" />
+                  <BreakdownRow label="Public" value={publicDocuments} tone="bg-emerald-500" />
+                  <BreakdownRow label="Private" value={privateDocuments} tone="bg-slate-400" />
+                  <BreakdownRow label="Hidden" value={hiddenDocuments} tone="bg-amber-500" />
+                </ul>
+              )}
+            </article>
+
+            <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
+              <h3 className="font-extrabold text-[#0b1c30]">Reports Overview</h3>
+              {metrics?.reports ? (
+                <ul className="mt-4 space-y-2.5">
+                  <BreakdownRow label="Pending" value={metrics.reports.pendingReports} tone="bg-amber-500" />
+                  <BreakdownRow label="Reviewed" value={metrics.reports.reviewedReports} tone="bg-[#3525cd]" />
+                  <BreakdownRow label="Resolved" value={metrics.reports.resolvedReports} tone="bg-emerald-500" />
+                  <BreakdownRow label="Rejected" value={metrics.reports.rejectedReports} tone="bg-red-500" />
+                </ul>
+              ) : (
+                <div className="mt-4 rounded-xl bg-[#f8f9ff] px-4 py-6 text-center text-xs font-semibold text-[#74798a]">
+                  {metricsLoaded ? 'No report data available.' : 'Loading...'}
+                </div>
+              )}
+            </article>
+          </div>
+        </section>
+
+        <section className="mt-6 overflow-hidden rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#3525cd]" />
+              <div>
+                <h2 className="text-lg font-extrabold text-[#0b1c30]">AI Chatbot Insights</h2>
+                <p className="text-sm text-[#74798a]">Document citations and chatbot usage analytics</p>
+              </div>
+            </div>
+            <span className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
+              Not implemented yet
+            </span>
+          </div>
+          <div className="mt-5 rounded-xl bg-[#f8f9ff] px-5 py-8 text-center">
+            <MessageSquare className="mx-auto h-8 w-8 text-[#74798a]" />
+            <p className="mt-3 text-sm font-extrabold text-[#0b1c30]">Chatbot document analytics are pending</p>
+            <p className="mx-auto mt-1 max-w-xl text-sm text-[#74798a]">
+              The current metrics API only returns chatbot API call count. Top cited documents and research/PDF breakdown are not available yet.
+            </p>
+          </div>
+        </section>
+
+        {showHealthToast && (
+          <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-xl bg-[#0b1c30] px-4 py-3 text-sm font-semibold text-white shadow-lg">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            System health check completed successfully.
+            <button
+              type="button"
+              onClick={() => setShowHealthToast(false)}
+              className="ml-2 text-white/60 hover:text-white"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
       </div>
     </DashboardShell>
   )
 }
 
-function MetricCard({ icon: Icon, label, value, trend, tag, action }) {
+function MetricCard({ icon: Icon, label, value, tag, highlight }) {
+  const tagToneClass = {
+    green: 'bg-emerald-50 text-emerald-600',
+    red: 'bg-red-50 text-red-600',
+    gray: 'bg-[#eff4ff] text-[#74798a]',
+    urgent: 'bg-red-500 text-white',
+  }
   return (
-    <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
+    <article
+      className={`rounded-2xl border p-5 shadow-sm ${
+        highlight
+          ? 'border-[#3525cd]/40 bg-[#eef0ff]'
+          : 'border-[#c7c4d8]/20 bg-white'
+      }`}
+    >
       <div className="flex items-start justify-between">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e8e3ff] text-[#3525cd]">
+        <span
+          className={`grid h-10 w-10 place-items-center rounded-xl ${
+            highlight ? 'bg-white text-[#3525cd]' : 'bg-[#e8e3ff] text-[#3525cd]'
+          }`}
+        >
           <Icon className="h-5 w-5" aria-hidden />
         </span>
-        {trend && <span className="text-xs font-bold text-emerald-600">{trend}</span>}
         {tag && (
-          <span className="rounded-lg bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">{tag}</span>
-        )}
-        {action && (
-          <span className="rounded-lg bg-[#3525cd] px-2 py-0.5 text-xs font-bold text-white">{action}</span>
+          <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${tagToneClass[tag.tone] || tagToneClass.gray}`}>
+            {tag.text}
+          </span>
         )}
       </div>
       <p className="mt-5 text-xs font-bold uppercase tracking-wide text-[#74798a]">{label}</p>
       <p className="mt-1 text-2xl font-extrabold text-[#0b1c30]">{value}</p>
     </article>
   )
+}
+
+function CircularProgress({ percent, overLimit = false }) {
+  const radius = 70
+  const circumference = 2 * Math.PI * radius
+  const safePercent = Math.max(0, Math.min(100, percent))
+  const offset = circumference * (1 - safePercent / 100)
+  return (
+    <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
+      <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef0ff" strokeWidth="14" />
+      <circle
+        cx="80"
+        cy="80"
+        r={radius}
+        fill="none"
+        stroke={overLimit ? '#ef4444' : '#3525cd'}
+        strokeWidth="14"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function BreakdownRow({ label, value, tone }) {
+  return (
+    <li className="flex items-center justify-between rounded-xl border border-[#c7c4d8]/25 px-3 py-2.5">
+      <span className="flex items-center gap-2.5 text-sm font-bold text-[#0b1c30]">
+        <span className={`h-2.5 w-2.5 rounded-full ${tone}`} />
+        {label}
+      </span>
+      <span className="text-sm font-extrabold text-[#464555]">
+        {value == null ? '—' : value.toLocaleString()}
+      </span>
+    </li>
+  )
+}
+
+function DashboardSmallMetric({ icon: Icon, label, value, note }) {
+  return (
+    <article className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/20 bg-white px-4 py-3 shadow-sm">
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eff4ff] text-[#3525cd]">
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[#74798a]">{label}</p>
+        <p className="text-xl font-extrabold text-[#0b1c30]">{value}</p>
+        {note && <p className="text-[10px] font-bold text-[#74798a]">{note}</p>}
+      </div>
+    </article>
+  )
+}
+
+function mapApiUser(u) {
+  return {
+    id: u.id,
+    initials: (u.fullName || 'U')
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase(),
+    fullName: u.fullName,
+    email: u.email,
+    role: capitalize(u.role),
+    status: u.status === 'LOCKED' ? 'Locked' : 'Active',
+    joined: relativeTime(u.createdAt),
+  }
+}
+
+function capitalize(value = '') {
+  if (!value) return ''
+  return value.charAt(0) + value.slice(1).toLowerCase()
+}
+
+function relativeTime(value) {
+  if (!value) return '—'
+  const diffMs = Date.now() - new Date(value).getTime()
+  if (Number.isNaN(diffMs)) return '—'
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.floor(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatStorage(gb) {
+  if (gb == null || Number.isNaN(gb)) return '—'
+  if (gb >= 1024) return `${(gb / 1024).toFixed(2)} TB`
+  return `${gb.toFixed(gb >= 100 ? 0 : 1)} GB`
+}
+
+function formatReason(reason) {
+  if (!reason) return '—'
+  return String(reason)
+    .split('_')
+    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(' ')
 }

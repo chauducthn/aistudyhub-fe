@@ -10,6 +10,7 @@ import AuthContext from './authContextValue'
 
 const SESSION_STORAGE_KEY = 'studyhub.auth.session'
 const DEFAULT_SESSION_TTL_SECONDS = 15 * 60
+const REVALIDATE_BUFFER_MS = 2 * 60 * 1000
 
 function readStoredSession() {
   try {
@@ -114,6 +115,13 @@ export function AuthProvider({ children }) {
     }
 
     if (initialSession) {
+      const msUntilExpiry = initialSession.expiresAt - Date.now()
+      if (msUntilExpiry > REVALIDATE_BUFFER_MS) {
+        return () => {
+          setOnTokenRefreshed(null)
+          setOnSessionExpired(null)
+        }
+      }
       void revalidateStoredSession()
     } else {
       void initializeSession()

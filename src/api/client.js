@@ -8,9 +8,12 @@ import axios from 'axios'
  * 4. FE retry request ban đầu với token mới (người dùng không bị đăng xuất đột ngột)
  */
 
+const REQUEST_TIMEOUT_MS = 15_000
+
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   withCredentials: true,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -20,6 +23,7 @@ const apiClient = axios.create({
 const refreshClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   withCredentials: true,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },

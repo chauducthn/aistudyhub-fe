@@ -36,8 +36,27 @@ input {
   color: #74798a;
 }
 
+.auth-input:hover:not(:focus):not(:disabled) {
+  background: #e7edff;
+}
+
 .auth-input:focus {
   background: #fff;
-  border-color: #c7c4d8;
+  border-color: #3525cd;
   box-shadow: 0 0 0 3px rgba(53, 37, 205, 0.14);
+}
+
+.auth-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-input--with-affix {
+  padding-right: 44px;
+}
+
+.auth-input--invalid,
+.auth-input--invalid:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
 }
