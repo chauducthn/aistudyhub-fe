@@ -509,7 +509,7 @@ async function deleteDocumentMock(id) {
 
   documentsStore = documentsStore.filter((d) => d.id !== id)
 
-  return
+  return {
     success: true,
     data: { id },
   }
