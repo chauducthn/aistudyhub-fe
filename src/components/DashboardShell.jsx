@@ -59,6 +59,8 @@ export default function DashboardShell({ type = 'user', children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const isAdmin = type === 'admin'
+  const userIsAdmin = String(user?.role || '').toUpperCase() === 'ADMIN'
+  const roleLabel = userIsAdmin ? 'Admin' : 'Student'
 
   const handleLogout = async () => {
     await logout()
@@ -207,10 +209,10 @@ export default function DashboardShell({ type = 'user', children }) {
                 <p className="text-sm font-bold text-[#0b1c30]">{user?.fullName || 'User'}</p>
                 <span
                   className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                    isAdmin ? 'bg-[#3525cd]/15 text-[#3525cd]' : 'bg-[#e8e3ff] text-[#3525cd]'
+                    userIsAdmin ? 'bg-[#3525cd]/15 text-[#3525cd]' : 'bg-[#e8e3ff] text-[#3525cd]'
                   }`}
                 >
-                  {isAdmin ? 'Admin' : 'Student'}
+                  {roleLabel}
                 </span>
               </div>
               {avatarUrl ? (

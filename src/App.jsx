@@ -3,6 +3,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminUsersPage from './pages/AdminUsersPage'
+import ChatbotPage from './pages/ChatbotPage'
+import ChatHistoryPage from './pages/ChatHistoryPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import EditDocumentPage from './pages/EditDocumentPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -133,6 +135,23 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProfileSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/chatbot"
+            element={
+              <ProtectedRoute>
+                <ChatbotPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat-history"
+            element={
+              <ProtectedRoute>
+                <ChatHistoryPage />
               </ProtectedRoute>
             }
           />

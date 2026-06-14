@@ -30,8 +30,12 @@ export default function LoginPage() {
 
     try {
       const data = await login({ email, password })
-      const fallbackPath = isAdminRole(data.user?.role) ? '/admin/dashboard' : '/dashboard'
-      navigate(location.state?.from?.pathname || fallbackPath, { replace: true })
+      const admin = isAdminRole(data.user?.role)
+      const fallbackPath = admin ? '/admin/dashboard' : '/dashboard'
+      const from = location.state?.from?.pathname
+      const fromIsAdminArea = from?.startsWith('/admin')
+      const target = from && fromIsAdminArea === admin ? from : fallbackPath
+      navigate(target, { replace: true })
     } catch (err) {
       setError(getApiErrorMessage(err, 'Login failed. Please check your credentials.'))
     }
