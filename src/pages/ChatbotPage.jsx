@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bot, Loader2, Send, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Bot, FileText, Loader2, Send, Trash2 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import { useAuth } from '../context/useAuth'
 import {
@@ -200,29 +201,44 @@ export default function ChatbotPage() {
           </div>
 
           <form onSubmit={handleSend} className="border-t border-[#c7c4d8]/20 bg-[#f8f9ff] px-4 py-3 sm:px-6">
-            {documents.length > 0 && (
-              <div className="mb-2 flex items-center gap-2 text-xs">
-                <label htmlFor="chat-doc" className="font-bold text-[#74798a]">
-                  Context:
-                </label>
-                <select
-                  id="chat-doc"
-                  value={documentId}
-                  onChange={(e) => setDocumentId(e.target.value)}
-                  className="rounded-lg border border-[#c7c4d8]/40 bg-white px-2 py-1 text-xs font-semibold text-[#0b1c30] outline-none"
-                >
-                  <option value="">No document</option>
-                  {documents.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.title}
-                    </option>
-                  ))}
-                </select>
-                {selectedDoc && (
-                  <span className="truncate text-[#74798a]">· grounding answers on this file</span>
-                )}
-              </div>
-            )}
+            <div className="mb-2.5 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 font-bold text-[#74798a]">
+                <FileText className="h-3.5 w-3.5" />
+                Document context:
+              </span>
+              {documents.length > 0 ? (
+                <>
+                  <select
+                    id="chat-doc"
+                    value={documentId}
+                    onChange={(e) => setDocumentId(e.target.value)}
+                    className="rounded-lg border border-[#c7c4d8]/50 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#0b1c30] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/15"
+                  >
+                    <option value="">No document (general help)</option>
+                    {documents.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.title}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedDoc ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-[#e8e3ff] px-2 py-1 font-bold text-[#3525cd]">
+                      Grounding on: {selectedDoc.title}
+                    </span>
+                  ) : (
+                    <span className="text-[#74798a]">Pick a file to ground the answer on it.</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-[#74798a]">
+                  No documents yet —{' '}
+                  <Link to="/upload" className="font-bold text-[#3525cd] hover:underline">
+                    upload one
+                  </Link>{' '}
+                  to chat about a specific file.
+                </span>
+              )}
+            </div>
             <div className="flex items-end gap-2">
               <textarea
                 value={input}
