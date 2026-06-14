@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -41,33 +41,54 @@ export default function AdminReportsPage() {
   const [message, setMessage] = useState('')
   const [adminNote, setAdminNote] = useState('')
 
-  const load = async () => {
+  const applyReportsData = useCallback((reportsData) => {
+    setData(reportsData)
+    setSelected((current) => {
+      if (!current) return null
+      return reportsData.content.find((report) => report.id === current.id) || null
+    })
+  }, [])
+
+  const refreshReports = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const res = await listAdminReports({ status, page, size: PAGE_SIZE })
       if (!res.success) throw new Error(res.message || 'Could not load reports.')
-      let content = res.data.content
-      if (reasonFilter !== 'ALL') {
-        content = content.filter((r) => r.reason === reasonFilter)
-      }
-      setData({ ...res.data, content })
-      if (selected) {
-        const fresh = content.find((r) => r.id === selected.id)
-        setSelected(fresh || null)
-      }
+      applyReportsData(res.data)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not load reports.'))
     } finally {
       setLoading(false)
     }
-  }
+  }, [applyReportsData, page, status])
 
   useEffect(() => {
-    void load()
-  }, [status, page])
+    let ignore = false
 
-  const filteredRows = useMemo(() => data.content, [data.content])
+    listAdminReports({ status, page, size: PAGE_SIZE })
+      .then((res) => {
+        if (ignore) return
+        if (!res.success) throw new Error(res.message || 'Could not load reports.')
+        applyReportsData(res.data)
+        setError('')
+      })
+      .catch((err) => {
+        if (!ignore) setError(getApiErrorMessage(err, 'Could not load reports.'))
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [applyReportsData, status, page])
+
+  const filteredRows = useMemo(() => {
+    if (reasonFilter === 'ALL') return data.content
+    return data.content.filter((row) => row.reason === reasonFilter)
+  }, [data.content, reasonFilter])
 
   const handleReject = async () => {
     if (!selected) return
@@ -83,7 +104,7 @@ export default function AdminReportsPage() {
       setMessage('Report rejected.')
       setSelected(null)
       setAdminNote('')
-      await load()
+      await refreshReports()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not reject report.'))
     } finally {
@@ -106,7 +127,7 @@ export default function AdminReportsPage() {
       setMessage(`Report resolved. Document set to ${documentStatus}.`)
       setSelected(null)
       setAdminNote('')
-      await load()
+      await refreshReports()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not resolve report.'))
     } finally {
@@ -130,6 +151,7 @@ export default function AdminReportsPage() {
             <select
               value={status}
               onChange={(e) => {
+                setLoading(true)
                 setStatus(e.target.value)
                 setPage(0)
               }}
@@ -217,7 +239,10 @@ export default function AdminReportsPage() {
                 <button
                   type="button"
                   disabled={page === 0}
-                  onClick={() => setPage((p) => p - 1)}
+                  onClick={() => {
+                    setLoading(true)
+                    setPage((p) => p - 1)
+                  }}
                   className="disabled:opacity-40"
                 >
                   Previous
@@ -228,7 +253,10 @@ export default function AdminReportsPage() {
                 <button
                   type="button"
                   disabled={page >= data.totalPages - 1}
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => {
+                    setLoading(true)
+                    setPage((p) => p + 1)
+                  }}
                   className="disabled:opacity-40"
                 >
                   Next

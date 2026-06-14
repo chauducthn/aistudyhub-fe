@@ -63,17 +63,16 @@ export default function PublicDocumentsPage() {
 
   useEffect(() => {
     let ignore = false
-    setLoading(true)
-    setError('')
     listPublicDocuments({ search, subjectId, page, size: PAGE_SIZE })
       .then((res) => {
         if (ignore) return
         if (!res.success) throw new Error(res.message || 'Could not load public documents.')
         let content = res.data.content
         if (subjectId) {
-          content = content.filter((d) => d.subjectId === subjectId)
+          content = content.filter((d) => String(d.subjectId) === String(subjectId))
         }
         setData({ ...res.data, content })
+        setError('')
       })
       .catch((err) => {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load public documents.'))
@@ -88,6 +87,7 @@ export default function PublicDocumentsPage() {
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
+    setLoading(true)
     setPage(0)
     setSearch(searchInput.trim())
   }
@@ -140,6 +140,7 @@ export default function PublicDocumentsPage() {
               id="pub-subject"
               value={subjectId}
               onChange={(e) => {
+                setLoading(true)
                 setSubjectId(e.target.value)
                 setPage(0)
               }}
@@ -262,7 +263,10 @@ export default function PublicDocumentsPage() {
                 <button
                   type="button"
                   disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  onClick={() => {
+                    setLoading(true)
+                    setPage((p) => Math.max(0, p - 1))
+                  }}
                   className="rounded-lg border border-[#c7c4d8]/40 px-3 py-1.5 disabled:opacity-40"
                 >
                   Previous
@@ -270,7 +274,10 @@ export default function PublicDocumentsPage() {
                 <button
                   type="button"
                   disabled={page >= data.totalPages - 1}
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => {
+                    setLoading(true)
+                    setPage((p) => p + 1)
+                  }}
                   className="rounded-lg border border-[#c7c4d8]/40 px-3 py-1.5 disabled:opacity-40"
                 >
                   Next
