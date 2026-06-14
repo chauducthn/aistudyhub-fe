@@ -1,6 +1,10 @@
-import { FileText, Plus, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Bot, FileText, Loader2, Plus, Send } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import { useAuth } from '../context/useAuth'
+import { sendChatMessage } from '../api/chatbotApi'
+import { getApiErrorMessage } from '../utils/apiError'
 
 const docs = [
   { name: 'Quantum_Physics_Vol4.pdf', meta: '4.2MB • PDF', subject: 'Physics', subjectClass: 'bg-[#e8e3ff] text-[#3525cd]', date: 'Oct 24', type: 'pdf' },
@@ -118,48 +122,7 @@ export default function UserDashboardPage() {
           </article>
 
           <div className="space-y-4">
-            <article className="rounded-2xl border-2 border-[#57dffe]/40 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-[#0b1c30]">Study Assistant</h3>
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  ONLINE
-                </span>
-              </div>
-              <div className="mt-4 space-y-3">
-                <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-[#dce9ff] px-4 py-3 text-sm font-medium text-[#0b1c30]">
-                  Summarize this document for me
-                </div>
-                <div className="rounded-2xl border border-[#c7c4d8]/25 bg-[#f8f9ff] px-4 py-3 text-sm leading-6 text-[#464555]">
-                  Here is a short summary of Quantum_Physics_Vol4.pdf. This volume covers
-                  Heisenberg&apos;s uncertainty principle, wave-particle duality, and more.
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {['Summarize', 'Explain Concepts', 'Create Quiz'].map((chip) => (
-                  <span
-                    key={chip}
-                    className="rounded-full bg-[#d6f7fb] px-3 py-1.5 text-xs font-bold text-[#00687a]"
-                  >
-                    {chip}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-4 flex h-11 items-center gap-2 rounded-xl bg-[#eff4ff] px-3">
-                <input
-                  type="text"
-                  placeholder="Ask AI anything..."
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#74798a]"
-                />
-                <button
-                  type="button"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#3525cd] text-white"
-                  aria-label="Send"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-            </article>
+            <StudyAssistantWidget />
 
             <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-5 shadow-sm">
               <div className="flex justify-between text-sm font-extrabold text-[#0b1c30]">
@@ -216,6 +179,130 @@ export default function UserDashboardPage() {
         </button>
       </div>
     </DashboardShell>
+  )
+}
+
+function StudyAssistantWidget() {
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const scrollRef = useRef(null)
+
+  const scrollToBottom = () => {
+    requestAnimationFrame(() => {
+      const el = scrollRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    })
+  }
+
+  const send = async (text) => {
+    const trimmed = (text ?? input).trim()
+    if (!trimmed || sending) return
+
+    setError('')
+    setSending(true)
+    setInput('')
+    setMessages((prev) => [...prev, { role: 'user', text: trimmed }])
+    scrollToBottom()
+
+    try {
+      const res = await sendChatMessage({ message: trimmed })
+      if (!res.success || !res.data) throw new Error(res.message || 'No response.')
+      setMessages((prev) => [...prev, { role: 'bot', text: res.data.response }])
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not reach the assistant.'))
+    } finally {
+      setSending(false)
+      scrollToBottom()
+    }
+  }
+
+  return (
+    <article className="rounded-2xl border-2 border-[#57dffe]/40 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="font-extrabold text-[#0b1c30]">Study Assistant</h3>
+        <Link to="/chatbot" className="text-xs font-bold text-[#3525cd] hover:underline">
+          Open full chat
+        </Link>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="mt-4 max-h-64 min-h-[120px] space-y-3 overflow-y-auto"
+      >
+        {messages.length === 0 ? (
+          <div className="rounded-2xl border border-[#c7c4d8]/25 bg-[#f8f9ff] px-4 py-3 text-sm leading-6 text-[#464555]">
+            Hi {`👋`} Ask me to summarize a topic, explain a concept, or create a quiz to get started.
+          </div>
+        ) : (
+          messages.map((m, idx) =>
+            m.role === 'user' ? (
+              <div
+                key={idx}
+                className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-[#3525cd] px-4 py-3 text-sm font-medium text-white"
+              >
+                {m.text}
+              </div>
+            ) : (
+              <div
+                key={idx}
+                className="flex max-w-[90%] gap-2 rounded-2xl rounded-tl-sm border border-[#c7c4d8]/25 bg-[#f8f9ff] px-3 py-3 text-sm leading-6 text-[#464555]"
+              >
+                <Bot className="mt-0.5 h-4 w-4 shrink-0 text-[#3525cd]" />
+                <span className="whitespace-pre-wrap">{m.text}</span>
+              </div>
+            ),
+          )
+        )}
+        {sending && (
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#74798a]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#3525cd]" />
+            Assistant is thinking...
+          </div>
+        )}
+      </div>
+
+      {error && <p className="mt-3 text-xs font-semibold text-red-600">{error}</p>}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {['Summarize a topic', 'Explain a concept', 'Create a quiz'].map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => send(chip)}
+            disabled={sending}
+            className="rounded-full bg-[#d6f7fb] px-3 py-1.5 text-xs font-bold text-[#00687a] transition hover:bg-[#bdeef6] disabled:opacity-50"
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          send()
+        }}
+        className="mt-4 flex h-11 items-center gap-2 rounded-xl bg-[#eff4ff] px-3"
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask AI anything..."
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#74798a]"
+        />
+        <button
+          type="submit"
+          disabled={!input.trim() || sending}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#3525cd] text-white transition hover:bg-[#2d1fb0] disabled:opacity-50"
+          aria-label="Send"
+        >
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </button>
+      </form>
+    </article>
   )
 }
 
