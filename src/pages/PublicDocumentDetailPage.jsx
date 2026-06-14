@@ -23,16 +23,16 @@ export default function PublicDocumentDetailPage() {
 
   useEffect(() => {
     let ignore = false
-    setLoading(true)
-    setPreviewLoading(true)
-    setError(null)
-    setPreviewError('')
-    setPreview(null)
 
     getPublicDocument(id)
       .then((res) => {
         if (ignore) return
-        if (res.success) setDoc(res.data)
+        if (res.success) {
+          setDoc(res.data)
+          setError(null)
+        } else {
+          setError(res.message || 'Could not load document.')
+        }
       })
       .catch((err) => {
         if (ignore) return
@@ -45,8 +45,13 @@ export default function PublicDocumentDetailPage() {
     getPublicDocumentPreview(id)
       .then((res) => {
         if (ignore) return
-        if (res.success) setPreview(res.data)
-        else setPreviewError(res.message || 'Preview not available.')
+        if (res.success) {
+          setPreview(res.data)
+          setPreviewError('')
+        } else {
+          setPreview(null)
+          setPreviewError(res.message || 'Preview not available.')
+        }
       })
       .catch((err) => {
         if (!ignore) setPreviewError(getApiErrorMessage(err, 'Preview not available.'))

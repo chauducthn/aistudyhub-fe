@@ -1,26 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, X } from 'lucide-react'
 import { REPORT_REASONS, submitDocumentReport } from '../../api/reportsApi'
 import { getApiErrorMessage } from '../../utils/apiError'
 
 export default function ReportDocumentModal({ open, documentId, documentTitle, onClose, onSuccess }) {
+  if (!open) return null
+
+  return (
+    <ReportDocumentModalContent
+      key={documentId || 'new-report'}
+      documentId={documentId}
+      documentTitle={documentTitle}
+      onClose={onClose}
+      onSuccess={onSuccess}
+    />
+  )
+}
+
+function ReportDocumentModalContent({ documentId, documentTitle, onClose, onSuccess }) {
   const [reason, setReason] = useState('')
   const [description, setDescription] = useState('')
   const [reasonError, setReasonError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (!open) return
-    setReason('')
-    setDescription('')
-    setReasonError('')
-    setError('')
-    setSuccess('')
-  }, [open, documentId])
-
-  if (!open) return null
 
   const handleSubmit = async (event) => {
     event.preventDefault()
