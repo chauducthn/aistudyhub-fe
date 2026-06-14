@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import ChatbotPage from './pages/ChatbotPage'
+import ChatHistoryPage from './pages/ChatHistoryPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import EditDocumentPage from './pages/EditDocumentPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -150,7 +151,7 @@ export default function App() {
             path="/chat-history"
             element={
               <ProtectedRoute>
-                <ChatbotPage />
+                <ChatHistoryPage />
               </ProtectedRoute>
             }
           />
