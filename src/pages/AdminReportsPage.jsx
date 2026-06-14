@@ -1,0 +1,362 @@
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  EyeOff,
+  Loader2,
+  Lock,
+  Trash2,
+  X,
+} from 'lucide-react'
+import DashboardShell from '../components/DashboardShell'
+import {
+  REPORT_REASONS,
+  REPORT_STATUS_OPTIONS,
+  listAdminReports,
+  reportReasonLabel,
+  resolveAdminReport,
+} from '../api/reportsApi'
+import { getApiErrorMessage } from '../utils/apiError'
+
+const PAGE_SIZE = 10
+
+const REASON_FILTER_OPTIONS = [{ value: 'ALL', label: 'All reasons' }, ...REPORT_REASONS]
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(value),
+  )
+}
+
+export default function AdminReportsPage() {
+  const [status, setStatus] = useState('PENDING')
+  const [reasonFilter, setReasonFilter] = useState('ALL')
+  const [page, setPage] = useState(0)
+  const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 })
+  const [selected, setSelected] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [adminNote, setAdminNote] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await listAdminReports({ status, page, size: PAGE_SIZE })
+      if (!res.success) throw new Error(res.message || 'Could not load reports.')
+      let content = res.data.content
+      if (reasonFilter !== 'ALL') {
+        content = content.filter((r) => r.reason === reasonFilter)
+      }
+      setData({ ...res.data, content })
+      if (selected) {
+        const fresh = content.find((r) => r.id === selected.id)
+        setSelected(fresh || null)
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not load reports.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [status, page])
+
+  const filteredRows = useMemo(() => data.content, [data.content])
+
+  const handleReject = async () => {
+    if (!selected) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await resolveAdminReport(selected.id, {
+        status: 'REJECTED',
+        adminNote: adminNote.trim() || undefined,
+      })
+      if (!res.success) throw new Error(res.message)
+      setMessage('Report rejected.')
+      setSelected(null)
+      setAdminNote('')
+      await load()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not reject report.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleResolve = async (documentStatus) => {
+    if (!selected) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await resolveAdminReport(selected.id, {
+        status: 'RESOLVED',
+        documentStatus,
+        adminNote: adminNote.trim() || undefined,
+      })
+      if (!res.success) throw new Error(res.message)
+      setMessage(`Report resolved. Document set to ${documentStatus}.`)
+      setSelected(null)
+      setAdminNote('')
+      await load()
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not resolve report.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <DashboardShell type="admin">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <div>
+          <h1 className="text-3xl font-extrabold text-[#0b1c30]">Report Management</h1>
+          <p className="mt-2 text-base text-[#464555]">
+            Review community reports on public documents. Reject invalid reports or take action on the document.
+          </p>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="sm:w-48">
+            <label className="text-sm font-bold text-[#0b1c30]">Status</label>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value)
+                setPage(0)
+              }}
+              className="auth-input mt-2"
+            >
+              {REPORT_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:w-56">
+            <label className="text-sm font-bold text-[#0b1c30]">Reason</label>
+            <select
+              value={reasonFilter}
+              onChange={(e) => setReasonFilter(e.target.value)}
+              className="auth-input mt-2"
+            >
+              {REASON_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <AlertTriangle className="h-4 w-4" />
+            {error}
+          </div>
+        )}
+        {message && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+            <CheckCircle2 className="h-4 w-4" />
+            {message}
+          </div>
+        )}
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <section className="overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white shadow-sm">
+            {loading ? (
+              <div className="grid place-items-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-[#3525cd]" />
+              </div>
+            ) : filteredRows.length === 0 ? (
+              <p className="px-6 py-16 text-center text-sm text-[#74798a]">No reports match your filters.</p>
+            ) : (
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-[#c7c4d8]/20 bg-[#f8f9ff] text-xs font-bold uppercase text-[#74798a]">
+                  <tr>
+                    <th className="px-4 py-3">Document</th>
+                    <th className="px-4 py-3">Reason</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => {
+                        setSelected(row)
+                        setAdminNote(row.adminNote || '')
+                      }}
+                      className={`cursor-pointer border-b border-[#c7c4d8]/15 transition hover:bg-[#f8f9ff] ${
+                        selected?.id === row.id ? 'bg-[#3525cd]/5' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-semibold text-[#0b1c30]">{row.documentTitle}</td>
+                      <td className="px-4 py-3 text-[#464555]">{reportReasonLabel(row.reason)}</td>
+                      <td className="px-4 py-3">
+                        <ReportStatusBadge status={row.status} />
+                      </td>
+                      <td className="px-4 py-3 text-[#74798a]">{formatDate(row.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {data.totalPages > 1 && (
+              <div className="flex justify-between border-t border-[#c7c4d8]/20 px-4 py-3 text-sm font-semibold">
+                <button
+                  type="button"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span>
+                  {page + 1} / {data.totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={page >= data.totalPages - 1}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </section>
+
+          <aside className="rounded-2xl border border-[#c7c4d8]/25 bg-white p-6 shadow-sm">
+            {!selected ? (
+              <p className="text-sm text-[#74798a]">Select a report to view details and take action.</p>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="text-lg font-extrabold text-[#0b1c30]">Report detail</h2>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(null)}
+                    className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[#eff4ff]"
+                    aria-label="Close detail"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <Detail label="Document" value={selected.documentTitle} />
+                  <Detail label="Doc status" value={selected.documentStatus} />
+                  <Detail label="Reporter" value={selected.reporterEmail} />
+                  <Detail label="Reason" value={reportReasonLabel(selected.reason)} />
+                  <Detail label="Description" value={selected.description || '—'} />
+                  <Detail label="Report status" value={selected.status} />
+                  <Detail label="Submitted" value={formatDate(selected.createdAt)} />
+                </dl>
+
+                {(selected.status === 'PENDING' || selected.status === 'REVIEWED') && (
+                  <div className="mt-6 space-y-4">
+                    <div>
+                      <label className="text-sm font-bold text-[#0b1c30]">Admin note</label>
+                      <textarea
+                        value={adminNote}
+                        onChange={(e) => setAdminNote(e.target.value)}
+                        rows={3}
+                        className="auth-input mt-2 min-h-[80px] resize-y py-2"
+                        placeholder="Optional note for audit trail..."
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleReject}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#c7c4d8]/40 text-sm font-bold text-[#464555] hover:bg-[#eff4ff] disabled:opacity-60"
+                    >
+                      Reject report
+                    </button>
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#74798a]">
+                      Document actions (resolve)
+                    </p>
+                    <div className="grid gap-2">
+                      <ModerationButton
+                        icon={EyeOff}
+                        label="Hide document"
+                        onClick={() => handleResolve('HIDDEN')}
+                        disabled={busy}
+                      />
+                      <ModerationButton
+                        icon={Lock}
+                        label="Lock document"
+                        onClick={() => handleResolve('LOCKED')}
+                        disabled={busy}
+                      />
+                      <ModerationButton
+                        icon={Trash2}
+                        label="Remove document"
+                        tone="danger"
+                        onClick={() => handleResolve('REMOVED')}
+                        disabled={busy}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </aside>
+        </div>
+      </div>
+    </DashboardShell>
+  )
+}
+
+function Detail({ label, value }) {
+  return (
+    <div>
+      <dt className="text-xs font-bold uppercase text-[#74798a]">{label}</dt>
+      <dd className="mt-0.5 font-semibold text-[#0b1c30]">{value}</dd>
+    </div>
+  )
+}
+
+function ReportStatusBadge({ status }) {
+  const map = {
+    PENDING: 'bg-amber-50 text-amber-800',
+    REVIEWED: 'bg-blue-50 text-blue-700',
+    REJECTED: 'bg-slate-100 text-slate-600',
+    RESOLVED: 'bg-emerald-50 text-emerald-700',
+  }
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${map[status] || 'bg-slate-100'}`}
+    >
+      {status}
+    </span>
+  )
+}
+
+function ModerationButton({ icon: Icon, label, onClick, disabled, tone = 'default' }) {
+  const cls =
+    tone === 'danger'
+      ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+      : 'border-[#c7c4d8]/40 text-[#0b1c30] hover:bg-[#eff4ff]'
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold disabled:opacity-60 ${cls}`}
+    >
+      {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+      {label}
+    </button>
+  )
+}

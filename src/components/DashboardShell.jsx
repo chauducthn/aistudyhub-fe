@@ -26,6 +26,7 @@ import { useAuth } from '../context/useAuth'
 const userNav = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'My Documents', to: '/documents', icon: Files },
+  { label: 'Public Documents', to: '/public-documents', icon: CloudUpload },
   { label: 'Upload', to: '/upload', icon: Upload },
   { label: 'Subjects', to: '/subjects', icon: FolderOpen },
   { label: 'AI Chatbot', to: '/chatbot', icon: Bot },
@@ -80,7 +81,7 @@ export default function DashboardShell({ type = 'user', children }) {
 
         {!isAdmin && (
           <Link
-            to="/dashboard"
+            to="/upload"
             className="mt-6 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3525cd] text-sm font-bold text-white shadow-[0_8px_20px_rgba(53,37,205,0.25)]"
           >
             <Plus className="h-4 w-4" aria-hidden />
