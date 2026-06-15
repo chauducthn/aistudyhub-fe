@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -26,6 +27,7 @@ import { useAuth } from '../context/useAuth'
 const userNav = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'My Documents', to: '/documents', icon: Files },
+  { label: 'Advanced Search', to: '/search', icon: FileSearch },
   { label: 'Public Documents', to: '/public-documents', icon: CloudUpload },
   { label: 'Upload', to: '/upload', icon: Upload },
   { label: 'Subjects', to: '/subjects', icon: FolderOpen },
@@ -61,6 +63,7 @@ export default function DashboardShell({ type = 'user', children }) {
   const isAdmin = type === 'admin'
   const userIsAdmin = String(user?.role || '').toUpperCase() === 'ADMIN'
   const roleLabel = userIsAdmin ? 'Admin' : 'Student'
+  const [headerSearch, setHeaderSearch] = useState('')
 
   const handleLogout = async () => {
     await logout()
@@ -174,27 +177,40 @@ export default function DashboardShell({ type = 'user', children }) {
       <div className="lg:pl-[260px]">
         <header className="sticky top-0 z-30 border-b border-[#c7c4d8]/25 bg-white/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-3 lg:gap-4">
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#c7c4d8]/40 bg-[#f8f9ff] px-3 py-2">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const q = headerSearch.trim()
+                if (userIsAdmin) {
+                  navigate(q ? `/admin/documents?keyword=${encodeURIComponent(q)}` : '/admin/documents')
+                } else {
+                  navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search')
+                }
+              }}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#c7c4d8]/40 bg-[#f8f9ff] px-3 py-2"
+            >
               <Search className="h-4 w-4 shrink-0 text-[#74798a]" aria-hidden />
               <input
                 type="search"
+                value={headerSearch}
+                onChange={(e) => setHeaderSearch(e.target.value)}
                 placeholder={
                   isAdmin
-                    ? 'Search users, documents, or subjects...'
+                    ? 'Search all documents...'
                     : 'Search documents, subjects, or notes...'
                 }
                 className="min-w-0 flex-1 bg-transparent text-sm text-[#0b1c30] outline-none placeholder:text-[#74798a]"
               />
-            </div>
+            </form>
 
             {!isAdmin && (
-              <button
-                type="button"
+              <Link
+                to="/upload"
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#57dffe] px-4 text-sm font-bold text-[#0b1c30] shadow-sm"
               >
                 <CloudUpload className="h-4 w-4" aria-hidden />
                 <span className="hidden sm:inline">Upload Document</span>
-              </button>
+              </Link>
             )}
 
             <button type="button" className="grid h-10 w-10 place-items-center rounded-xl text-[#464555] hover:bg-[#eff4ff]" aria-label="Notifications">
