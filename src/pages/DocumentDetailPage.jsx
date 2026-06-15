@@ -82,11 +82,11 @@ export default function DocumentDetailPage() {
         const res = await getDocumentPreview(doc)
         if (ignore) return
         if (res.success) {
-          if (res.data?.type === 'pdf') objectUrl = res.data.previewUrl
+          if (res.data?.type === 'pdf' || res.data?.type === 'image') objectUrl = res.data.previewUrl
           setPreview(res.data)
           setPreviewError('')
         } else {
-          setPreview(null)
+          setPreview(res.data || null)
           setPreviewError(res.message || 'Preview is not available for this document.')
         }
       } catch (err) {
@@ -251,6 +251,30 @@ function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) 
           title={doc.title}
           src={preview.previewUrl}
           className="h-full w-full border-0"
+        />
+      </div>
+    )
+  }
+
+  if (preview?.type === 'office' && preview.previewUrl) {
+    return (
+      <div className="h-[620px] bg-[#f8f9ff]">
+        <iframe
+          title={doc.title}
+          src={preview.previewUrl}
+          className="h-full w-full border-0"
+        />
+      </div>
+    )
+  }
+
+  if (preview?.type === 'image' && preview.previewUrl) {
+    return (
+      <div className="grid h-[620px] place-items-center overflow-auto bg-[#0b1c30] p-4">
+        <img
+          src={preview.previewUrl}
+          alt={doc.title}
+          className="max-h-full max-w-full object-contain"
         />
       </div>
     )
