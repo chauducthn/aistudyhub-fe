@@ -10,7 +10,9 @@ import {
   Trash2,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import { listSubjects, uploadDocument } from '../api/documentsApi'
+import { extractionStatusMeta } from '../utils/extractionStatus'
 import { getApiErrorMessage } from '../utils/apiError'
 
 const ALLOWED_EXTENSIONS = [
@@ -67,6 +69,7 @@ export default function UploadDocumentPage() {
   const [fileError, setFileError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [uploadedDoc, setUploadedDoc] = useState(null)
   const [progress, setProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -125,8 +128,10 @@ export default function UploadDocumentPage() {
         setProgress,
       )
       if (!res.success) throw new Error(res.message || 'Upload failed.')
-      setSuccess('Document uploaded successfully. Redirecting...')
-      setTimeout(() => navigate('/documents'), 1200)
+      setUploadedDoc(res.data)
+      const extractionLabel = extractionStatusMeta(res.data?.extractionStatus).label
+      setSuccess(`Document uploaded. AI text status: ${extractionLabel}.`)
+      setTimeout(() => navigate('/documents'), 2800)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed. Please try again.'))
     } finally {
@@ -308,6 +313,11 @@ export default function UploadDocumentPage() {
               <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" />
                 {success}
+              </div>
+            )}
+            {uploadedDoc && (
+              <div className="mb-4">
+                <ExtractionStatusPanel doc={uploadedDoc} compact />
               </div>
             )}
 

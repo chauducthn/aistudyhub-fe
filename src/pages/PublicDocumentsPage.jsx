@@ -10,6 +10,7 @@ import {
   Search,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ExtractionStatusBadge from '../components/documents/ExtractionStatusBadge'
 import ReportDocumentModal from '../components/reports/ReportDocumentModal'
 import { downloadDocument, listPublicDocuments } from '../api/documentsApi'
 import { listSubjects } from '../api/subjectsApi'
@@ -187,6 +188,7 @@ export default function PublicDocumentsPage() {
                   <tr>
                     <th className="px-4 py-3">Document</th>
                     <th className="hidden px-4 py-3 md:table-cell">Subject</th>
+                    <th className="hidden px-4 py-3 lg:table-cell">AI Text</th>
                     <th className="hidden px-4 py-3 lg:table-cell">Size</th>
                     <th className="hidden px-4 py-3 sm:table-cell">Uploaded</th>
                     <th className="px-4 py-3 text-right">Actions</th>
@@ -207,6 +209,9 @@ export default function PublicDocumentsPage() {
                           ) : (
                             doc.subjectName || '—'
                           )}
+                        </td>
+                        <td className="hidden px-4 py-4 lg:table-cell">
+                          <ExtractionStatusBadge status={doc.extractionStatus} compact />
                         </td>
                         <td className="hidden px-4 py-4 lg:table-cell text-[#464555]">
                           {formatBytes(doc.fileSize)}

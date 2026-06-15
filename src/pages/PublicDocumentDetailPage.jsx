@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Download, Flag, Loader2 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import ReportDocumentModal from '../components/reports/ReportDocumentModal'
 import {
   downloadDocument,
@@ -134,6 +135,10 @@ export default function PublicDocumentDetailPage() {
               Download
             </button>
           </div>
+        </div>
+
+        <div className="mt-6 max-w-xl">
+          <ExtractionStatusPanel doc={doc} />
         </div>
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white shadow-sm">

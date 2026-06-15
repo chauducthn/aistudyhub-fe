@@ -34,6 +34,9 @@ export function mapDocumentFromApi(raw) {
     status: visibility,
     visibility,
     downloadUrl: resolveMediaUrl(raw.fileUrl),
+    extractionStatus: raw.extractionStatus || 'PENDING',
+    extractionError: raw.extractionError || null,
+    extractedAt: raw.extractedAt || null,
   }
 }
 

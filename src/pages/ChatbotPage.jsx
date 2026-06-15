@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Bot, FileText, Loader2, Send, Trash2 } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, Bot, FileText, Loader2, Send, Trash2 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ExtractionStatusBadge from '../components/documents/ExtractionStatusBadge'
 import { useAuth } from '../context/useAuth'
 import {
   clearChatHistory,
   getChatHistory,
+  listChatContextDocuments,
   sendChatMessage,
 } from '../api/chatbotApi'
-import { listMyDocuments } from '../api/documentsApi'
+import { extractionStatusMeta, isChatReady } from '../utils/extractionStatus'
 import { getApiErrorMessage } from '../utils/apiError'
 
 function expandToBubbles(record) {
@@ -28,6 +30,7 @@ function expandToBubbles(record) {
       text: record.response,
       at: record.createdAt,
       documentTitle: record.documentTitle,
+      model: record.model,
     })
   }
   return bubbles
@@ -35,6 +38,7 @@ function expandToBubbles(record) {
 
 export default function ChatbotPage() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
   const [bubbles, setBubbles] = useState([])
   const [input, setInput] = useState('')
   const [documentId, setDocumentId] = useState('')
@@ -65,14 +69,19 @@ export default function ChatbotPage() {
       try {
         const [historyRes, docsRes] = await Promise.all([
           getChatHistory({ page: 0, size: 50 }),
-          listMyDocuments({ page: 0, size: 100 }).catch(() => null),
+          listChatContextDocuments(),
         ])
         if (ignore) return
         if (historyRes.success) {
           const records = [...(historyRes.data.content || [])].reverse()
           setBubbles(records.flatMap(expandToBubbles))
         }
-        if (docsRes?.success) setDocuments(docsRes.data.content || [])
+        if (docsRes.success) setDocuments(docsRes.data || [])
+        const preselect = searchParams.get('doc')
+        if (preselect && docsRes.success) {
+          const exists = (docsRes.data || []).some((d) => String(d.id) === String(preselect))
+          if (exists) setDocumentId(String(preselect))
+        }
       } catch (err) {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load chat history.'))
       } finally {
@@ -82,7 +91,7 @@ export default function ChatbotPage() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [searchParams])
 
   useEffect(() => {
     scrollToBottom()
@@ -113,7 +122,12 @@ export default function ChatbotPage() {
     } catch (err) {
       setBubbles((prev) => prev.filter((b) => b.key !== tempKey))
       setInput(text)
-      setError(getApiErrorMessage(err, 'Could not send message.'))
+      const msg = getApiErrorMessage(err, 'Could not send message.')
+      if (msg.toLowerCase().includes('permission') || msg.includes('403')) {
+        setError('You cannot chat with this private document. Pick your own file or a public document.')
+      } else {
+        setError(msg)
+      }
     } finally {
       setSending(false)
     }
@@ -135,6 +149,7 @@ export default function ChatbotPage() {
   }
 
   const selectedDoc = documents.find((d) => String(d.id) === String(documentId))
+  const selectedMeta = selectedDoc ? extractionStatusMeta(selectedDoc.extractionStatus) : null
 
   return (
     <DashboardShell>
@@ -143,7 +158,7 @@ export default function ChatbotPage() {
           <div>
             <h1 className="text-2xl font-extrabold text-[#0b1c30] sm:text-3xl">AI Study Assistant</h1>
             <p className="mt-1 text-sm text-[#464555]">
-              Ask questions about your study materials and get focused study help.
+              Gửi câu hỏi qua <code className="rounded bg-[#eff4ff] px-1 text-xs">POST /api/chatbot/messages</code> — phản hồi thật từ backend (Gemini hoặc local fallback).
             </p>
           </div>
           <button
@@ -158,7 +173,10 @@ export default function ChatbotPage() {
         </div>
 
         {error && (
-          <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
         )}
 
         <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white shadow-sm">
@@ -175,7 +193,7 @@ export default function ChatbotPage() {
                   </span>
                   <h2 className="mt-5 text-lg font-extrabold text-[#0b1c30]">Start a conversation</h2>
                   <p className="mt-2 max-w-sm text-sm text-[#74798a]">
-                    Ask the assistant to summarize a document, explain a concept, or create a quiz.
+                    Chat không cần tài liệu, hoặc chọn file đã extract text để AI đọc nội dung.
                   </p>
                 </div>
               </div>
@@ -212,21 +230,35 @@ export default function ChatbotPage() {
                     id="chat-doc"
                     value={documentId}
                     onChange={(e) => setDocumentId(e.target.value)}
-                    className="rounded-lg border border-[#c7c4d8]/50 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#0b1c30] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/15"
+                    className="max-w-xs rounded-lg border border-[#c7c4d8]/50 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#0b1c30] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/15"
                   >
                     <option value="">No document (general help)</option>
                     {documents.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.title}
+                      <option
+                        key={d.id}
+                        value={d.id}
+                        disabled={d.extractionStatus === 'FAILED'}
+                      >
+                        {d.title} [{d.extractionStatus || 'PENDING'}]
+                        {d.source === 'public' ? ' · public' : ''}
+                        {d.extractionStatus === 'FAILED' ? ' · unavailable' : ''}
                       </option>
                     ))}
                   </select>
                   {selectedDoc ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-[#e8e3ff] px-2 py-1 font-bold text-[#3525cd]">
-                      Grounding on: {selectedDoc.title}
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-[#e8e3ff] px-2 py-1 font-bold text-[#3525cd]">
+                        {selectedDoc.source === 'public' ? 'Public:' : 'Mine:'} {selectedDoc.title}
+                      </span>
+                      <ExtractionStatusBadge status={selectedDoc.extractionStatus} />
+                      {!isChatReady(selectedDoc.extractionStatus) && (
+                        <span className="text-[#74798a]" title={selectedMeta?.hint}>
+                          Limited context until extraction completes.
+                        </span>
+                      )}
                     </span>
                   ) : (
-                    <span className="text-[#74798a]">Pick a file to ground the answer on it.</span>
+                    <span className="text-[#74798a]">Own docs + public docs you can access.</span>
                   )}
                 </>
               ) : (
@@ -235,7 +267,11 @@ export default function ChatbotPage() {
                   <Link to="/upload" className="font-bold text-[#3525cd] hover:underline">
                     upload one
                   </Link>{' '}
-                  to chat about a specific file.
+                  or browse{' '}
+                  <Link to="/public-documents" className="font-bold text-[#3525cd] hover:underline">
+                    public documents
+                  </Link>
+                  .
                 </span>
               )}
             </div>
@@ -290,6 +326,9 @@ function ChatBubble({ bubble, initials }) {
         >
           {bubble.text}
         </div>
+        {!isUser && bubble.model && (
+          <p className="mt-1 px-1 text-[10px] font-semibold text-[#74798a]">Model: {bubble.model}</p>
+        )}
         {bubble.documentTitle && (
           <p className="mt-1 px-1 text-[11px] font-semibold text-[#74798a]">
             Based on: {bubble.documentTitle}
