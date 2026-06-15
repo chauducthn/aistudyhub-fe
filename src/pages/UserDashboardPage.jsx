@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bot, FileText, Loader2, Plus, Send } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ChatMarkdown from '../components/ChatMarkdown'
 import { useAuth } from '../context/useAuth'
 import { sendChatMessage } from '../api/chatbotApi'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -250,7 +251,9 @@ function StudyAssistantWidget() {
                 className="flex max-w-[90%] gap-2 rounded-2xl rounded-tl-sm border border-[#c7c4d8]/25 bg-[#f8f9ff] px-3 py-3 text-sm leading-6 text-[#464555]"
               >
                 <Bot className="mt-0.5 h-4 w-4 shrink-0 text-[#3525cd]" />
-                <span className="whitespace-pre-wrap">{m.text}</span>
+                <div className="min-w-0 flex-1">
+                  <ChatMarkdown>{m.text}</ChatMarkdown>
+                </div>
               </div>
             ),
           )

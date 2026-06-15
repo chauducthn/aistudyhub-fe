@@ -9,6 +9,7 @@ import {
   User as UserIcon,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ChatMarkdown from '../components/ChatMarkdown'
 import { clearChatHistory, getChatHistory } from '../api/chatbotApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -280,9 +281,9 @@ function ConversationCard({ record }) {
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8e3ff] text-[#3525cd]">
             <Bot className="h-4 w-4" />
           </span>
-          <p className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-[#f8f9ff] px-3.5 py-2 text-sm leading-6 text-[#464555]">
-            {record.response}
-          </p>
+          <div className="rounded-2xl rounded-tl-sm bg-[#f8f9ff] px-3.5 py-2 text-sm leading-6 text-[#464555]">
+            <ChatMarkdown>{record.response}</ChatMarkdown>
+          </div>
         </div>
       </div>
     </article>

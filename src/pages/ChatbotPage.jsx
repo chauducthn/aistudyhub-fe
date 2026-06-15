@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bot, FileText, Loader2, Send, Trash2 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ChatMarkdown from '../components/ChatMarkdown'
 import { useAuth } from '../context/useAuth'
 import {
   clearChatHistory,
@@ -282,13 +283,13 @@ function ChatBubble({ bubble, initials }) {
       </span>
       <div className={`max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div
-          className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${
+          className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
             isUser
-              ? 'rounded-br-sm bg-[#3525cd] text-white'
+              ? 'whitespace-pre-wrap rounded-br-sm bg-[#3525cd] text-white'
               : 'rounded-bl-sm bg-[#f1f3fb] text-[#0b1c30]'
           }`}
         >
-          {bubble.text}
+          {isUser ? bubble.text : <ChatMarkdown>{bubble.text}</ChatMarkdown>}
         </div>
         {bubble.documentTitle && (
           <p className="mt-1 px-1 text-[11px] font-semibold text-[#74798a]">
