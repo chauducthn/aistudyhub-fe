@@ -25,6 +25,9 @@ import {
   updateDocument,
 } from '../api/documentsApi'
 import { getApiErrorMessage } from '../utils/apiError'
+import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import ActionIconButton from '../components/ui/ActionIconButton'
 
 const PAGE_SIZE = 8
 
@@ -521,28 +524,7 @@ function VisibilityPill({ visibility }) {
     </span>
   )
 }
-
-function ActionIconButton({ children, label, onClick, disabled, tone = 'default' }) {
-  const toneClass = {
-    default: 'text-[#464555] hover:bg-[#eff4ff] hover:text-[#3525cd]',
-    danger: 'text-[#464555] hover:bg-red-50 hover:text-red-600',
-    active: 'bg-[#e8e3ff] text-[#3525cd] hover:bg-[#dcd3ff]',
-  }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={`grid h-9 w-9 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-50 ${toneClass[tone] || toneClass.default}`}
-    >
-      {children}
-    </button>
-  )
-}
-
-function EditDocumentModal({ doc, subjects, onClose, onSave, saving }) {
+export function EditDocumentModal({ doc, subjects, onClose, onSave, saving }) {
   return (
     <Modal onClose={onClose}>
       <div className="mb-5 flex items-start justify-between gap-3">
@@ -573,66 +555,3 @@ function EditDocumentModal({ doc, subjects, onClose, onSave, saving }) {
   )
 }
 
-function ConfirmDialog({ title, description, confirmLabel, tone = 'default', busy, onCancel, onConfirm }) {
-  const confirmClass =
-    tone === 'danger'
-      ? 'bg-red-600 hover:bg-red-700'
-      : 'bg-[#3525cd] hover:bg-[#2d1fb0]'
-  const iconBg =
-    tone === 'danger' ? 'bg-red-50 text-red-600' : 'bg-[#eef0ff] text-[#3525cd]'
-
-  return (
-    <Modal onClose={onCancel} maxWidth="max-w-md">
-      <div className="text-center">
-        <span className={`mx-auto grid h-12 w-12 place-items-center rounded-2xl ${iconBg}`}>
-          <AlertTriangle className="h-6 w-6" />
-        </span>
-        <h2 className="mt-4 text-xl font-extrabold text-[#0b1c30]">{title}</h2>
-        <p className="mt-2 text-sm text-[#464555]">{description}</p>
-      </div>
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="inline-flex h-11 items-center justify-center rounded-xl border border-[#c7c4d8]/40 bg-white text-sm font-bold text-[#0b1c30] transition hover:bg-[#eff4ff]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={busy}
-          className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass}`}
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {confirmLabel}
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
-function Modal({ children, onClose, maxWidth = 'max-w-lg' }) {
-  useEffect(() => {
-    const onEsc = (e) => {
-      if (e.key === 'Escape') onClose?.()
-    }
-    document.addEventListener('keydown', onEsc)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onEsc)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#0b1c30]/40 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal>
-      <div
-        className={`w-full ${maxWidth} rounded-2xl bg-white p-6 shadow-[0_24px_60px_rgba(11,28,48,0.18)]`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
