@@ -28,6 +28,8 @@ export function mapDocumentFromApi(raw) {
     originalFilename: raw.originalFilename,
     fileSize: raw.fileSize,
     fileType: fileType.includes('pdf') ? 'pdf' : fileType.split('/').pop() || fileType,
+    contentType: raw.contentType || null,
+    s3Key: raw.s3Key || null,
     fileUrl: raw.fileUrl,
     uploadedAt: raw.createdAt || raw.uploadedAt,
     updatedAt: raw.updatedAt,
