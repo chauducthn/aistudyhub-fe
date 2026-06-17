@@ -2,7 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
+import AdminDocumentsPage from './pages/AdminDocumentsPage'
 import AdminUsersPage from './pages/AdminUsersPage'
+import AdvancedSearchPage from './pages/AdvancedSearchPage'
 import ChatbotPage from './pages/ChatbotPage'
 import ChatHistoryPage from './pages/ChatHistoryPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
@@ -103,12 +105,28 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <AdvancedSearchPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/admin/dashboard"
             element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                 <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/documents"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminDocumentsPage />
               </ProtectedRoute>
             }
           />

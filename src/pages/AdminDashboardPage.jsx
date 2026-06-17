@@ -18,7 +18,7 @@ import { useAuth } from '../context/useAuth'
 import { getDashboardMetrics, listReports, listUsers } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
 import { MetricCard, DashboardSmallMetric, BreakdownRow, CircularProgress } from '../components/admin/AdminWidgets'
-import { mapApiUser, formatStorage, formatReason, relativeTime } from '../utils/formatters'
+import { mapApiUser, formatStorage, formatReason, formatDate } from '../utils/formatters'
 
 export default function AdminDashboardPage() {
   const { user } = useAuth()
