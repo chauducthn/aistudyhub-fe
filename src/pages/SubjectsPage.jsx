@@ -50,7 +50,7 @@ function deriveColor(name = '') {
   return SUBJECT_COLORS[hash % SUBJECT_COLORS.length]
 }
 
-export default function SubjectsPage() {
+export default function SubjectsPage({ shellType = 'user' }) {
   const [subjects, setSubjects] = useState([])
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -151,7 +151,7 @@ export default function SubjectsPage() {
   }
 
   return (
-    <DashboardShell>
+    <DashboardShell type={shellType}>
       <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>

@@ -139,6 +139,22 @@ export default function App() {
             }
           />
           <Route
+            path="/admin/subjects"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <SubjectsPage shellType="admin" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/moderation"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/reports"
             element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
