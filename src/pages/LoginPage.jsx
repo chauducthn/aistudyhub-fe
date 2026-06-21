@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { KeyRound } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import loginIllustration from '../assets/illustrations/login-illustration.png'
 import AuthSplitLayout, {
@@ -9,7 +8,6 @@ import AuthSplitLayout, {
   AuthPrimaryButton,
   AuthTextLink,
 } from '../components/auth/AuthSplitLayout'
-import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import PasswordInput from '../components/auth/PasswordInput'
 import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -107,24 +105,6 @@ export default function LoginPage() {
           </AuthPrimaryButton>
         </form>
       </AuthFormCard>
-
-      <div className="mt-7">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-xs font-bold uppercase tracking-wide text-[#74798a]">
-          <span className="h-px bg-[#c7c4d8]/50" />
-          Or continue with
-          <span className="h-px bg-[#c7c4d8]/50" />
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <GoogleSignInButton label="Google" />
-          <button
-            type="button"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#c7c4d8]/50 bg-white text-sm font-semibold text-[#464555] shadow-sm transition hover:bg-[#f8f9ff]"
-          >
-            <KeyRound className="h-4 w-4" aria-hidden />
-            SSO Login
-          </button>
-        </div>
-      </div>
     </AuthSplitLayout>
   )
 }

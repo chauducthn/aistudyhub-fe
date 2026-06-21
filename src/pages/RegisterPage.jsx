@@ -8,7 +8,6 @@ import AuthSplitLayout, {
   AuthPrimaryButton,
   AuthTextLink,
 } from '../components/auth/AuthSplitLayout'
-import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import PasswordInput from '../components/auth/PasswordInput'
 import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -43,7 +42,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [agree, setAgree] = useState(false)
   const [error, setError] = useState('')
   const [touched, setTouched] = useState({ password: false, confirm: false })
 
@@ -63,10 +61,6 @@ export default function RegisterPage() {
     }
     if (password !== confirmPassword) {
       setError('Confirm password does not match.')
-      return
-    }
-    if (!agree) {
-      setError('Please accept the Terms and Conditions to continue.')
       return
     }
 
@@ -196,34 +190,10 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <label className="flex items-start gap-3 text-sm leading-6 text-[#464555]">
-            <input
-              type="checkbox"
-              required
-              checked={agree}
-              onChange={(e) => setAgree(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded accent-[#3525cd]"
-            />
-            <span>
-              I agree to the{' '}
-              <a href="#" className="font-semibold text-[#3525cd] hover:underline">
-                Terms and Conditions
-              </a>
-            </span>
-          </label>
-
           <AuthPrimaryButton disabled={loading}>
             {loading ? 'Creating account...' : 'Register'}
           </AuthPrimaryButton>
         </form>
-
-        <div className="my-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-xs font-bold uppercase tracking-wide text-[#74798a]">
-          <span className="h-px bg-[#c7c4d8]/50" />
-          OR
-          <span className="h-px bg-[#c7c4d8]/50" />
-        </div>
-
-        <GoogleSignInButton variant="register" />
 
         <p className="mt-7 text-center text-sm text-[#464555]">
           Already have an account? <AuthTextLink to="/login">Login</AuthTextLink>

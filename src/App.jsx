@@ -6,7 +6,6 @@ import AdminDocumentsPage from './pages/AdminDocumentsPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import AdvancedSearchPage from './pages/AdvancedSearchPage'
 import ChatbotPage from './pages/ChatbotPage'
-import ChatHistoryPage from './pages/ChatHistoryPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import EditDocumentPage from './pages/EditDocumentPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -139,22 +138,6 @@ export default function App() {
             }
           />
           <Route
-            path="/admin/subjects"
-            element={
-              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
-                <SubjectsPage shellType="admin" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/moderation"
-            element={
-              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
-                <AdminReportsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/admin/reports"
             element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
@@ -181,14 +164,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/chat-history"
-            element={
-              <ProtectedRoute>
-                <ChatHistoryPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/chat-history" element={<Navigate to="/chatbot" replace />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
