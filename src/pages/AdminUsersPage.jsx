@@ -179,9 +179,6 @@ export default function AdminUsersPage() {
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
             <h1 className="text-4xl font-extrabold">User Management</h1>
-            <p className="mt-3 text-xl font-semibold text-[#4f5668]">
-              Manage accounts: edit info, lock/unlock, reset password, or delete.
-            </p>
           </div>
           <form onSubmit={handleSearchSubmit} className="flex w-full gap-3 md:max-w-xl">
             <input

@@ -235,7 +235,7 @@ export default function MyDocumentsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search title, description, or file name..."
-                className="auth-input pl-10"
+                className="auth-input !pl-10"
               />
             </div>
             <select

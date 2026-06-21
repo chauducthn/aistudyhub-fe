@@ -7,7 +7,6 @@ import {
   StepsSection,
   AudienceSection,
   FinalCta,
-  Footer
 } from '../components/home/HomeSections'
 
 export default function HomePage() {
@@ -22,7 +21,6 @@ export default function HomePage() {
       <StepsSection />
       <AudienceSection />
       <FinalCta />
-      <Footer />
     </main>
   )
 }
