@@ -30,7 +30,7 @@ const userNav = [
 const adminMainNav = [
   { label: 'Admin Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'User Management', to: '/admin/users', icon: Users },
-  { label: 'Documents', to: '/admin/documents', icon: FileSearch },
+  { label: 'Documents Management', to: '/admin/documents', icon: FileSearch },
   { label: 'Reports', to: '/admin/reports', icon: Shield },
 ]
 
