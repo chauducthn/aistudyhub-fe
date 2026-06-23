@@ -5,7 +5,6 @@ import { listSubjects as listSubjectsImpl } from './subjectsApi'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
 
-const TEXT_PREVIEW_EXTENSIONS = new Set(['txt', 'md', 'csv'])
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
 
 export function mapDocumentFromApi(raw) {
@@ -28,6 +27,8 @@ export function mapDocumentFromApi(raw) {
     originalFilename: raw.originalFilename,
     fileSize: raw.fileSize,
     fileType: fileType.includes('pdf') ? 'pdf' : fileType.split('/').pop() || fileType,
+    contentType: raw.contentType || null,
+    s3Key: raw.s3Key || null,
     fileUrl: raw.fileUrl,
     uploadedAt: raw.createdAt || raw.uploadedAt,
     updatedAt: raw.updatedAt,
@@ -161,53 +162,66 @@ export async function getPublicDocumentPreview(id) {
   return buildPreviewFromDoc(docRes.data)
 }
 
+const TEXT_PREVIEW_EXTENSIONS = new Set(['txt', 'md', 'csv', 'json', 'log'])
+const OFFICE_PREVIEW_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'])
+const IMAGE_PREVIEW_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'])
+
+function extOf(doc) {
+  return (doc.fileType || doc.originalFilename?.split('.').pop() || '').toLowerCase()
+}
+
+/** URL công khai tới file thật (Cloudinary tuyệt đối hoặc /uploads qua proxy). */
+function fileSourceUrl(doc) {
+  return doc.downloadUrl || resolveMediaUrl(doc.fileUrl)
+}
+
 async function buildPreviewFromDoc(doc) {
   const docId = normalizeDocId(doc.id)
-  const ext = (doc.fileType || doc.originalFilename?.split('.').pop() || '').toLowerCase()
+  const ext = extOf(doc)
+  const src = fileSourceUrl(doc)
+  const fileName = doc.fileName || doc.originalFilename
+  const isPublicUrl = /^https?:\/\//i.test(src || '')
 
-  if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext)) {
+
+  if (OFFICE_PREVIEW_EXTENSIONS.has(ext)) {
+    if (isPublicUrl) {
+      const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`
+      return { success: true, message: null, data: { type: 'office', previewUrl: officeUrl, sourceUrl: src, fileName } }
+    }
     return {
       success: false,
-      data: null,
-      message: `Inline preview is not available for ${ext.toUpperCase() || 'this'} files. Download to view.`,
+      data: { type: 'download', fileName },
+      message: 'Inline preview for Office files needs a public file URL. Download to view.',
     }
   }
 
-  const response = await apiClient.get(`/documents/${docId}/download`, {
-    responseType: 'blob',
-  })
+  if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext) && !IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
+    return {
+      success: false,
+      data: { type: 'download', fileName },
+      message: `Inline preview is not available for ${ext.toUpperCase() || 'this'} file. Download to view.`,
+    }
+  }
 
+
+  const response = await apiClient.get(`/documents/${docId}/download`, { responseType: 'blob' })
   const blob = response.data
 
   if (ext === 'pdf') {
-    const pdfBlob =
-      blob.type === 'application/pdf'
-        ? blob
-        : new Blob([blob], { type: 'application/pdf' })
+    const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
+    return { success: true, message: null, data: { type: 'pdf', previewUrl: window.URL.createObjectURL(pdfBlob), fileName } }
+  }
 
-    return {
-      success: true,
-      message: null,
-      data: {
-        type: 'pdf',
-        previewUrl: window.URL.createObjectURL(pdfBlob),
-        fileName: doc.fileName || doc.originalFilename,
-      },
-    }
+  if (IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
+    return { success: true, message: null, data: { type: 'image', previewUrl: window.URL.createObjectURL(blob), fileName } }
   }
 
   const slice = blob.size > MAX_TEXT_PREVIEW_BYTES ? blob.slice(0, MAX_TEXT_PREVIEW_BYTES) : blob
   const textContent = await slice.text()
-
   return {
     success: true,
     message: null,
-    data: {
-      type: 'text',
-      textContent,
-      truncated: blob.size > MAX_TEXT_PREVIEW_BYTES,
-      fileName: doc.fileName || doc.originalFilename,
-    },
+    data: { type: 'text', textContent, truncated: blob.size > MAX_TEXT_PREVIEW_BYTES, fileName },
   }
 }
 
@@ -344,35 +358,28 @@ export async function downloadDocument(doc) {
     if (doc?.downloadUrl && doc.downloadUrl !== '#') {
       window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer')
     }
-
     return { success: true, data: { id: doc?.id } }
   }
 
-  const docId = normalizeDocId(doc.id)
 
-  const response = await apiClient.get(`/documents/${docId}/download`, {
-    responseType: 'blob',
-  })
+  const docId = normalizeDocId(doc.id)
+  const response = await apiClient.get(`/documents/${docId}/download`, { responseType: 'blob' })
 
   const blob = new Blob([response.data], {
     type: response.headers['content-type'] || 'application/octet-stream',
   })
-
   const disposition = response.headers['content-disposition'] || ''
   const match = disposition.match(/filename="?([^"]+)"?/i)
   const filename = match?.[1] || doc.fileName || doc.originalFilename || 'document'
 
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
-
   link.href = url
   link.download = filename
   link.rel = 'noopener'
-
   document.body.appendChild(link)
   link.click()
   link.remove()
-
   window.URL.revokeObjectURL(url)
 
   return { success: true, data: { id: doc.id } }

@@ -1,8 +1,25 @@
 import apiClient from './client'
+import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
+import { mapDocumentFromApi } from './documentsApi'
 
 export async function getDashboardMetrics() {
   const { data } = await apiClient.get('/admin/dashboard/metrics')
   return data
+}
+
+/** GET /api/admin/documents — full-text search across ALL users' documents */
+export async function listAdminDocuments({ keyword = '', status = '', userId = '', page = 0, size = 10 } = {}) {
+  const params = { page, size }
+  if (keyword.trim()) params.keyword = keyword.trim()
+  if (status) params.status = status
+  if (userId) params.userId = Number(userId)
+
+  const { data } = await apiClient.get('/admin/documents', { params })
+  const body = unwrapApiResponse(data)
+  return {
+    ...body,
+    data: mapPageResponse(body.data, mapDocumentFromApi),
+  }
 }
 
 export async function listUsers({ search = '', page = 0, size = 10 } = {}) {
@@ -23,6 +40,26 @@ export async function updateUserStatus(userId, status) {
   const { data } = await apiClient.patch(`/admin/users/${userId}/status`, {
     status,
   })
+  return data
+}
+
+export async function updateUser(userId, { fullName, phone }) {
+  const { data } = await apiClient.patch(`/admin/users/${userId}`, {
+    fullName,
+    phone: phone || null,
+  })
+  return data
+}
+
+export async function resetUserPassword(userId, newPassword) {
+  const { data } = await apiClient.patch(`/admin/users/${userId}/password`, {
+    newPassword,
+  })
+  return data
+}
+
+export async function deleteUser(userId) {
+  const { data } = await apiClient.delete(`/admin/users/${userId}`)
   return data
 }
 

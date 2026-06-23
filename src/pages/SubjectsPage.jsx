@@ -18,6 +18,9 @@ import {
   updateSubject,
 } from '../api/subjectsApi'
 import { getApiErrorMessage } from '../utils/apiError'
+import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import ActionIconButton from '../components/ui/ActionIconButton'
 
 const SUBJECT_COLORS = [
   '#3525cd',
@@ -47,7 +50,7 @@ function deriveColor(name = '') {
   return SUBJECT_COLORS[hash % SUBJECT_COLORS.length]
 }
 
-export default function SubjectsPage() {
+export default function SubjectsPage({ shellType = 'user' }) {
   const [subjects, setSubjects] = useState([])
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -148,7 +151,7 @@ export default function SubjectsPage() {
   }
 
   return (
-    <DashboardShell>
+    <DashboardShell type={shellType}>
       <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
@@ -178,7 +181,7 @@ export default function SubjectsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search subjects by name..."
-                className="auth-input pl-10"
+                className="auth-input !pl-10"
               />
             </div>
             <button
@@ -343,37 +346,18 @@ function SubjectCard({ subject, busy, onEdit, onDelete }) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <IconButton label="Edit" onClick={onEdit} disabled={busy}>
+          <ActionIconButton label="Edit" onClick={onEdit} disabled={busy}>
             <Pencil className="h-4 w-4" />
-          </IconButton>
-          <IconButton label="Delete" onClick={onDelete} disabled={busy} tone="danger">
+          </ActionIconButton>
+          <ActionIconButton label="Delete" onClick={onDelete} disabled={busy} tone="danger">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-          </IconButton>
+          </ActionIconButton>
         </div>
       </div>
       <div className="mt-4 flex items-center gap-2 border-t border-[#c7c4d8]/20 pt-3 text-xs font-semibold text-[#74798a]">
         Created {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(subject.createdAt))}
       </div>
     </article>
-  )
-}
-
-function IconButton({ children, label, onClick, disabled, tone = 'default' }) {
-  const toneClass = {
-    default: 'text-[#464555] hover:bg-[#eff4ff] hover:text-[#3525cd]',
-    danger: 'text-[#464555] hover:bg-red-50 hover:text-red-600',
-  }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={`grid h-9 w-9 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-50 ${toneClass[tone] || toneClass.default}`}
-    >
-      {children}
-    </button>
   )
 }
 
@@ -472,71 +456,6 @@ function SubjectFormModal({ title, submitLabel, initial, onClose, onSubmit, savi
   )
 }
 
-function ConfirmDialog({ title, description, confirmLabel, tone = 'default', busy, onCancel, onConfirm }) {
-  const confirmClass =
-    tone === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-[#3525cd] hover:bg-[#2d1fb0]'
-  const iconBg = tone === 'danger' ? 'bg-red-50 text-red-600' : 'bg-[#eef0ff] text-[#3525cd]'
-
-  return (
-    <Modal onClose={onCancel} maxWidth="max-w-md">
-      <div className="text-center">
-        <span className={`mx-auto grid h-12 w-12 place-items-center rounded-2xl ${iconBg}`}>
-          <AlertTriangle className="h-6 w-6" />
-        </span>
-        <h2 className="mt-4 text-xl font-extrabold text-[#0b1c30]">{title}</h2>
-        <p className="mt-2 text-sm text-[#464555]">{description}</p>
-      </div>
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="inline-flex h-11 items-center justify-center rounded-xl border border-[#c7c4d8]/40 bg-white text-sm font-bold text-[#0b1c30] transition hover:bg-[#eff4ff]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={busy}
-          className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass}`}
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {confirmLabel}
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
-function Modal({ children, onClose, maxWidth = 'max-w-lg' }) {
-  useEffect(() => {
-    const onEsc = (e) => {
-      if (e.key === 'Escape') onClose?.()
-    }
-    document.addEventListener('keydown', onEsc)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onEsc)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
-
-  return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[#0b1c30]/40 px-4 py-6 backdrop-blur-sm"
-      role="dialog"
-      aria-modal
-      onClick={onClose}
-    >
-      <div
-        className={`w-full ${maxWidth} rounded-2xl bg-white p-6 shadow-[0_24px_60px_rgba(11,28,48,0.18)]`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
 
 function Field({ label, required, error, hint, children }) {
   return (

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import loginIllustration from '../assets/illustrations/login-illustration.png'
 import AuthSplitLayout, {
   AuthAlert,
@@ -14,15 +13,12 @@ import { getApiErrorMessage } from '../utils/apiError'
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [devToken, setDevToken] = useState('')
+  const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setLoading(true)
-    setMessage('')
-    setDevToken('')
     setError('')
 
     try {
@@ -30,10 +26,7 @@ export default function ForgotPasswordPage() {
       if (!response.success) {
         throw new Error(response.message || 'Request failed')
       }
-      setMessage(response.data?.message || response.message)
-      if (response.data?.resetToken) {
-        setDevToken(response.data.resetToken)
-      }
+      setSent(true)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not process request.'))
     } finally {
@@ -57,7 +50,7 @@ export default function ForgotPasswordPage() {
     >
       <AuthFormCard
         title="Forgot Password"
-        subtitle="Enter your email. If an account exists, we will send reset instructions."
+        subtitle="Enter your email and we will send a reset link to your inbox."
         footer={
           <p className="text-center text-sm text-[#464555]">
             <AuthTextLink to="/login">Back to Login</AuthTextLink>
@@ -66,17 +59,10 @@ export default function ForgotPasswordPage() {
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && <AuthAlert>{error}</AuthAlert>}
-          {message && <AuthAlert tone="success">{message}</AuthAlert>}
-          {devToken && (
-            <AuthAlert tone="warning">
-              <p className="font-bold">Dev reset token:</p>
-              <p className="mt-1 break-all font-mono text-xs">{devToken}</p>
-              <Link
-                to={`/reset-password?token=${encodeURIComponent(devToken)}`}
-                className="mt-2 inline-block font-bold text-[#3525cd] hover:underline"
-              >
-                Open reset page
-              </Link>
+          {sent && (
+            <AuthAlert tone="success">
+              If an account exists for that email, a reset link has been sent. Check your inbox
+              (and spam folder) and open the link to set a new password.
             </AuthAlert>
           )}
 

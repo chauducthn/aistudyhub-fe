@@ -129,7 +129,7 @@ export default function PublicDocumentsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Title, description, filename..."
-                className="auth-input pl-10"
+                className="auth-input !pl-10"
               />
             </div>
           </div>

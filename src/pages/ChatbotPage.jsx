@@ -22,7 +22,7 @@ export default function ChatbotPage() {
           <div>
             <h1 className="text-2xl font-extrabold text-[#0b1c30] sm:text-3xl">AI Study Assistant</h1>
             <p className="mt-1 text-sm text-[#464555]">
-              Gửi câu hỏi qua <code className="rounded bg-[#eff4ff] px-1 text-xs">POST /api/chatbot/messages</code> — RAG lấy đoạn liên quan từ tài liệu đã extract.
+              Ask questions about your study materials. Bot replies support Markdown, code blocks, and citations.
             </p>
           </div>
           <button

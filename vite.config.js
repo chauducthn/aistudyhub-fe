@@ -27,4 +27,9 @@ export default defineConfig({
       '/v3': { target: 'http://localhost:8081', changeOrigin: true },
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/setupTests.js',
+  },
 })
