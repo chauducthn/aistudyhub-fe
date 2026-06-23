@@ -1,4 +1,7 @@
 import apiClient from './client'
+import { invalidateCache } from './requestCache'
+
+let refreshRequest = null
 
 export async function register({ email, password, fullName }) {
   const { data } = await apiClient.post('/auth/register', {
@@ -14,17 +17,26 @@ export async function login({ email, password }) {
     email,
     password,
   })
+  invalidateCache()
   return data
 }
 
 export async function logout() {
   const { data } = await apiClient.post('/auth/logout')
+  invalidateCache()
   return data
 }
 
 export async function refresh() {
-  const { data } = await apiClient.post('/auth/refresh')
-  return data
+  if (!refreshRequest) {
+    refreshRequest = apiClient
+      .post('/auth/refresh')
+      .then(({ data }) => data)
+      .finally(() => {
+        refreshRequest = null
+      })
+  }
+  return refreshRequest
 }
 
 export async function getCurrentUser() {
@@ -36,6 +48,7 @@ export async function updateProfile({ fullName }) {
   const { data } = await apiClient.patch('/users/me', {
     fullName,
   })
+  invalidateCache()
   return data
 }
 
@@ -48,11 +61,13 @@ export async function uploadAvatar(file) {
       'Content-Type': 'multipart/form-data',
     },
   })
+  invalidateCache()
   return data
 }
 
 export async function deleteAvatar() {
   const { data } = await apiClient.delete('/users/me/avatar')
+  invalidateCache()
   return data
 }
 

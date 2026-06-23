@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { cachedRequest, invalidateCache } from './requestCache'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
 
@@ -90,7 +91,14 @@ export async function listSubjects(params = {}) {
     }
   }
 
-  const { data } = await apiClient.get('/subjects')
+  const data = await cachedRequest(
+    'subjects:list',
+    async () => {
+      const response = await apiClient.get('/subjects')
+      return response.data
+    },
+    { ttlMs: 60_000 },
+  )
 
   const keyword = (params.search || '').trim().toLowerCase()
 
@@ -152,6 +160,7 @@ export async function createSubject(payload) {
   }
 
   const { data } = await apiClient.post('/subjects', { name })
+  invalidateCache('subjects:')
 
   const mapped = mapSubjectFromApi(data.data, subjectsStore.length)
 
@@ -207,6 +216,7 @@ export async function updateSubject(id, payload) {
   }
 
   const { data } = await apiClient.patch(`/subjects/${id}`, { name })
+  invalidateCache('subjects:')
 
   const mapped = mapSubjectFromApi(data.data)
 
@@ -245,6 +255,7 @@ export async function deleteSubject(id) {
   }
 
   const { data } = await apiClient.delete(`/subjects/${id}`)
+  invalidateCache('subjects:')
 
   return {
     success: data?.success ?? true,
