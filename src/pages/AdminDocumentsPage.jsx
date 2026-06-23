@@ -112,7 +112,7 @@ export default function AdminDocumentsPage() {
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
                 placeholder="Search by title, file name, description, owner email/name, or subject..."
-                className="auth-input h-12 pl-11"
+                className="auth-input h-12 !pl-11"
               />
             </div>
             <select

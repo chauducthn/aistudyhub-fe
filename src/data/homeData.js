@@ -41,7 +41,7 @@ export const featureCards = [
 ]
 
 export const footerColumns = [
-  { title: 'PLATFORM', items: ['About', 'Research', 'Features', 'Pricing'] },
+  { title: 'PLATFORM', items: ['About', 'Research', 'Features'] },
   { title: 'RESOURCES', items: ['Documentation', 'Help Center', 'Community'] },
   { title: 'LEGAL', items: ['Privacy Policy', 'Terms of Service', 'Support'] },
 ]

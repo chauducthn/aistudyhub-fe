@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ROLES, normalizeRole, isAdminRole } from './roles'
+import { normalizeRole, isAdminRole } from './roles'
 
 describe('roles utility', () => {
   it('normalizeRole should convert to uppercase string', () => {

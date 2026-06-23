@@ -7,7 +7,7 @@ import chaosImageOne from '../../assets/images/figma-export-3.svg'
 import heroFallback from '../../assets/images/academic-ai-interface.svg'
 import { HERO_PREVIEW, featureCards, footerColumns } from '../../data/homeData'
 import {
-  SparkIcon, PlayIcon, ChatBubbleGraphic, XIcon,
+  SparkIcon, ChatBubbleGraphic, XIcon,
   CheckIcon, ArrowRightIcon, LinkedInIcon, GitHubIcon, XSocialIcon,
   CloudUploadGlyph, FilterGlyph, SearchGlyph, EyeGlyph, HistoryGlyph,
   UploadStepIcon, OrganizeStepIcon, ChatStepIcon, GraduationCapIcon, EducatorBoardIcon
@@ -28,9 +28,6 @@ export function Header({ isAuthenticated }) {
             style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 16, fontWeight: 700, lineHeight: '24px' }}
           >
             Features
-          </a>
-          <a className="pb-1 pt-1 text-base text-[#464555]" href="#pricing">
-            Pricing
           </a>
         </div>
         <Link
@@ -66,10 +63,6 @@ export function Hero() {
           <Link to="/register" className="rounded-xl bg-[#3525cd] px-8 py-[18px] text-sm font-medium text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.2)]">
             Get Started
           </Link>
-          <button className="inline-flex items-center gap-2 rounded-xl border border-[#3525cd]/20 bg-[#57dffe]/10 px-8 py-[17px] text-sm font-medium text-[#3525cd]">
-            <PlayIcon />
-            Watch Demo
-          </button>
         </div>
         <div className="mt-20 w-full max-w-5xl rounded-2xl border border-[#c7c4d8]/30 bg-white p-px shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
           <img
@@ -169,14 +162,14 @@ export function StepsSection() {
 
 export function AudienceSection() {
   return (
-    <section id="pricing" className="px-4 pb-24 sm:px-8">
+    <section id="audience" className="px-4 pb-24 sm:px-8">
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
         <AudienceCard
           iconType="student"
           title="For Students"
           text="Master your curriculum in half the time. Use AI to bridge gaps in your lecture notes and create perfect study guides automatically."
           items={['Exam Preparation', 'Thesis Research']}
-          linkText="See Student Plans"
+          linkText="Get Started"
           bg="bg-[#dce9ff]"
         />
         <AudienceCard
@@ -185,7 +178,7 @@ export function AudienceSection() {
           title="For Educators"
           text="Manage reading materials for your entire class. Track document engagement and use AI to generate quizzes and assessment questions."
           items={['Curriculum Design', 'Resource Distribution']}
-          linkText="See Educator Features"
+          linkText="Get Started"
           bg="bg-[#e6f7fb]"
         />
       </div>
@@ -200,12 +193,10 @@ export function FinalCta() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(79,70,229,0.22),transparent_42%)]" />
         <div className="relative mx-auto max-w-3xl">
           <h2 className="text-3xl font-bold leading-10">Ready to Ace Your Next Semester?</h2>
-          <p className="mt-6 text-lg leading-7 text-white/70">Join 50,000+ students and educators who have revolutionized their study habits with AI Study Hub.</p>
+          <p className="mt-6 text-lg leading-7 text-white/70">Organize your study materials and learn smarter with AI Study Hub.</p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link to="/register" className="rounded-full bg-[#3525cd] px-10 py-4 text-sm font-medium">Start Free Trial</Link>
-            <Link to="/login" className="rounded-full border border-white/20 bg-white/10 px-10 py-4 text-sm font-medium">Contact Sales</Link>
+            <Link to="/register" className="rounded-full bg-[#3525cd] px-10 py-4 text-sm font-medium">Get Started</Link>
           </div>
-          <p className="mt-6 text-xs font-semibold leading-4 text-white/40">No credit card required. Cancel anytime.</p>
         </div>
       </div>
     </section>

@@ -7,10 +7,15 @@ import {
   CloudUpload,
   FileText,
   Loader2,
+  Plus,
   Trash2,
+  X,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import { listSubjects, uploadDocument } from '../api/documentsApi'
+import { createSubject } from '../api/subjectsApi'
+import { extractionStatusMeta } from '../utils/extractionStatus'
 import { getApiErrorMessage } from '../utils/apiError'
 
 const ALLOWED_EXTENSIONS = [
@@ -67,9 +72,14 @@ export default function UploadDocumentPage() {
   const [fileError, setFileError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [uploadedDoc, setUploadedDoc] = useState(null)
   const [progress, setProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [creatingSubject, setCreatingSubject] = useState(false)
+  const [newSubjectName, setNewSubjectName] = useState('')
+  const [subjectError, setSubjectError] = useState('')
+  const [savingSubject, setSavingSubject] = useState(false)
 
   useEffect(() => {
     let ignore = false
@@ -82,6 +92,28 @@ export default function UploadDocumentPage() {
       ignore = true
     }
   }, [])
+
+  const handleCreateSubject = async () => {
+    const name = newSubjectName.trim()
+    if (!name) {
+      setSubjectError('Subject name is required.')
+      return
+    }
+    setSavingSubject(true)
+    setSubjectError('')
+    try {
+      const res = await createSubject({ name })
+      if (!res.success) throw new Error(res.message)
+      setSubjects((cur) => [...cur, res.data])
+      setSubjectId(String(res.data.id))
+      setNewSubjectName('')
+      setCreatingSubject(false)
+    } catch (err) {
+      setSubjectError(getApiErrorMessage(err, 'Could not create subject.'))
+    } finally {
+      setSavingSubject(false)
+    }
+  }
 
   const handleFile = (next) => {
     setError('')
@@ -125,8 +157,10 @@ export default function UploadDocumentPage() {
         setProgress,
       )
       if (!res.success) throw new Error(res.message || 'Upload failed.')
-      setSuccess('Document uploaded successfully. Redirecting...')
-      setTimeout(() => navigate('/documents'), 1200)
+      setUploadedDoc(res.data)
+      const extractionLabel = extractionStatusMeta(res.data?.extractionStatus).label
+      setSuccess(`Document uploaded. AI text status: ${extractionLabel}.`)
+      setTimeout(() => navigate('/documents'), 2800)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed. Please try again.'))
     } finally {
@@ -154,7 +188,7 @@ export default function UploadDocumentPage() {
           <div>
             <h1 className="text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">Upload Document</h1>
             <p className="mt-2 text-base text-[#464555]">
-              Add a new study document to your library. Accepted formats: PDF, Word, PowerPoint, Excel, TXT, Markdown, CSV, OpenDocument (max {MAX_SIZE_MB} MB).
+              Add a new study document to your library. Accepted formats: PDF, Word, PowerPoint, Excel, TXT, Markdown, CSV (max {MAX_SIZE_MB} MB).
             </p>
           </div>
         </div>
@@ -189,19 +223,78 @@ export default function UploadDocumentPage() {
               </Field>
 
               <Field label="Subject" id="subject" hint="Optional. Leave blank for uncategorized.">
-                <select
-                  id="subject"
-                  value={subjectId}
-                  onChange={(e) => setSubjectId(e.target.value)}
-                  className="auth-input bg-[#eff4ff]"
-                >
-                  <option value="">Uncategorized</option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                {creatingSubject ? (
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newSubjectName}
+                        onChange={(e) => {
+                          setNewSubjectName(e.target.value)
+                          if (subjectError) setSubjectError('')
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleCreateSubject()
+                          }
+                        }}
+                        maxLength={120}
+                        placeholder="New subject name"
+                        className="auth-input flex-1"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateSubject}
+                        disabled={savingSubject}
+                        className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-xl bg-[#3525cd] px-4 text-sm font-bold text-white transition hover:bg-[#2d1fb0] disabled:opacity-60"
+                      >
+                        {savingSubject ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatingSubject(false)
+                          setNewSubjectName('')
+                          setSubjectError('')
+                        }}
+                        aria-label="Cancel"
+                        className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#c7c4d8]/40 text-[#74798a] transition hover:bg-[#eff4ff]"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {subjectError && (
+                      <p className="mt-1.5 text-xs font-semibold text-red-600">{subjectError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <select
+                      id="subject"
+                      value={subjectId}
+                      onChange={(e) => setSubjectId(e.target.value)}
+                      className="auth-input flex-1 bg-[#eff4ff]"
+                    >
+                      <option value="">Uncategorized</option>
+                      {subjects.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setCreatingSubject(true)}
+                      className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-xl border border-[#3525cd]/30 bg-white px-4 text-sm font-bold text-[#3525cd] transition hover:bg-[#eff4ff]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New
+                    </button>
+                  </div>
+                )}
               </Field>
             </div>
           </section>
@@ -308,6 +401,11 @@ export default function UploadDocumentPage() {
               <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" />
                 {success}
+              </div>
+            )}
+            {uploadedDoc && (
+              <div className="mb-4">
+                <ExtractionStatusPanel doc={uploadedDoc} compact />
               </div>
             )}
 

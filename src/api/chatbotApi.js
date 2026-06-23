@@ -1,5 +1,6 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
+import { listMyDocuments, listPublicDocuments } from './documentsApi'
 
 
 export function mapChatMessageFromApi(raw) {
@@ -45,4 +46,25 @@ export async function getChatHistory({ page = 0, size = 20 } = {}) {
 export async function clearChatHistory() {
   const { data } = await apiClient.delete('/chatbot/history')
   return unwrapApiResponse(data)
+}
+
+/** Merge own + public documents eligible for chat context (SCRUM-46 / SCRUM-49). */
+export async function listChatContextDocuments() {
+  const [mineRes, publicRes] = await Promise.all([
+    listMyDocuments({ page: 0, size: 100 }).catch(() => ({ success: false, data: { content: [] } })),
+    listPublicDocuments({ page: 0, size: 100 }).catch(() => ({ success: false, data: { content: [] } })),
+  ])
+
+  const map = new Map()
+  if (mineRes.success) {
+    mineRes.data.content.forEach((doc) => map.set(doc.id, { ...doc, source: 'mine' }))
+  }
+  if (publicRes.success) {
+    publicRes.data.content.forEach((doc) => {
+      if (!map.has(doc.id)) map.set(doc.id, { ...doc, source: 'public' })
+    })
+  }
+
+  const list = [...map.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return { success: true, data: list, message: null }
 }

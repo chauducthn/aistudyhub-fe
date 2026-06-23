@@ -164,7 +164,7 @@ export default function AdvancedSearchPage() {
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
                 placeholder="Search by keyword (title, file name, description)..."
-                className="auth-input h-12 pl-11"
+                className="auth-input h-12 !pl-11"
               />
             </div>
             <button

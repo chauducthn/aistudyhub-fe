@@ -43,6 +43,26 @@ export async function updateUserStatus(userId, status) {
   return data
 }
 
+export async function updateUser(userId, { fullName, phone }) {
+  const { data } = await apiClient.patch(`/admin/users/${userId}`, {
+    fullName,
+    phone: phone || null,
+  })
+  return data
+}
+
+export async function resetUserPassword(userId, newPassword) {
+  const { data } = await apiClient.patch(`/admin/users/${userId}/password`, {
+    newPassword,
+  })
+  return data
+}
+
+export async function deleteUser(userId) {
+  const { data } = await apiClient.delete(`/admin/users/${userId}`)
+  return data
+}
+
 export const getAdminMetrics = getDashboardMetrics
 export const getAdminUsers = listUsers
 export const updateAdminUserStatus = updateUserStatus

@@ -181,7 +181,7 @@ export default function SubjectsPage({ shellType = 'user' }) {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search subjects by name..."
-                className="auth-input pl-10"
+                className="auth-input !pl-10"
               />
             </div>
             <button

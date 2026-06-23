@@ -14,7 +14,7 @@ import { getApiErrorMessage } from '../utils/apiError'
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [token, setToken] = useState(searchParams.get('token') || '')
+  const token = (searchParams.get('token') || '').trim()
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,6 +26,10 @@ export default function ResetPasswordPage() {
     setMessage('')
     setError('')
 
+    if (!token) {
+      setError('Reset link is invalid or missing its token. Please request a new one.')
+      return
+    }
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters.')
       return
@@ -37,7 +41,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true)
     try {
-      const response = await authApi.resetPassword({ token: token.trim(), newPassword })
+      const response = await authApi.resetPassword({ token, newPassword })
       if (!response.success) {
         throw new Error(response.message || 'Reset failed')
       }
@@ -66,7 +70,7 @@ export default function ResetPasswordPage() {
     >
       <AuthFormCard
         title="Reset Password"
-        subtitle="Enter your reset token and new password."
+        subtitle="Enter your new password below."
         footer={
           <p className="text-center text-sm text-[#464555]">
             <AuthTextLink to="/login">Back to Login</AuthTextLink>
@@ -77,15 +81,11 @@ export default function ResetPasswordPage() {
           {error && <AuthAlert>{error}</AuthAlert>}
           {message && <AuthAlert tone="success">{message}</AuthAlert>}
 
-          <AuthField label="Reset Token" id="token">
-            <input
-              id="token"
-              required
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="auth-input font-mono text-sm"
-            />
-          </AuthField>
+          {!token && !message && (
+            <AuthAlert tone="warning">
+              This page should be opened from the reset link in your email.
+            </AuthAlert>
+          )}
 
           <AuthField label="New Password" id="newPassword">
             <input
@@ -96,6 +96,7 @@ export default function ResetPasswordPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="auth-input"
+              placeholder="Enter a new password"
             />
           </AuthField>
 
@@ -108,6 +109,7 @@ export default function ResetPasswordPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="auth-input"
+              placeholder="Re-enter the new password"
             />
           </AuthField>
 
