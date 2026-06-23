@@ -18,8 +18,44 @@ export async function listAdminDocuments({ keyword = '', status = '', userId = '
   const body = unwrapApiResponse(data)
   return {
     ...body,
-    data: mapPageResponse(body.data, mapDocumentFromApi),
+    data: mapPageResponse(body.data, (raw) => ({
+      ...mapDocumentFromApi(raw),
+      userEmail: raw.userEmail,
+      userFullName: raw.userFullName,
+    })),
   }
+}
+
+/** PATCH /api/admin/documents/{id}/status */
+export async function updateAdminDocumentStatus(documentId, status) {
+  const { data } = await apiClient.patch(`/admin/documents/${documentId}/status`, { status })
+  return data
+}
+
+/** DELETE /api/admin/documents/{id} */
+export async function deleteAdminDocument(documentId) {
+  const { data } = await apiClient.delete(`/admin/documents/${documentId}`)
+  return data
+}
+
+/** GET /api/admin/documents/{id}/download — fetch the file (follows 302 to S3) */
+export async function downloadAdminDocument(doc) {
+  const response = await apiClient.get(`/admin/documents/${doc.id}/download`, {
+    responseType: 'blob',
+  })
+  const blob = new Blob([response.data], {
+    type: response.headers['content-type'] || 'application/octet-stream',
+  })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = doc.fileName || doc.originalFilename || 'document'
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+  return { success: true }
 }
 
 export async function listUsers({ search = '', page = 0, size = 10 } = {}) {
