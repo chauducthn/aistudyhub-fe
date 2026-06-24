@@ -1,11 +1,14 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
 import { resolveMediaUrl } from './mediaUrl'
+import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
 import { listSubjects as listSubjectsImpl } from './subjectsApi'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
 
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
+const DOCUMENT_CACHE_TTL_MS = 20_000
+const DOCUMENT_LIST_CACHE_TTL_MS = 15_000
 
 export function mapDocumentFromApi(raw) {
   if (!raw) return raw
@@ -35,6 +38,9 @@ export function mapDocumentFromApi(raw) {
     status: visibility,
     visibility,
     downloadUrl: resolveMediaUrl(raw.fileUrl),
+    extractionStatus: raw.extractionStatus || 'PENDING',
+    extractionError: raw.extractionError || null,
+    extractedAt: raw.extractedAt || null,
   }
 }
 
@@ -58,13 +64,19 @@ export async function getDocument(id) {
   }
 
   const docId = normalizeDocId(id)
-  const { data } = await apiClient.get(`/documents/${docId}`)
-  const body = unwrapApiResponse(data)
+  return cachedRequest(
+    `documents:detail:${docId}`,
+    async () => {
+      const { data } = await apiClient.get(`/documents/${docId}`)
+      const body = unwrapApiResponse(data)
 
-  return {
-    ...body,
-    data: body.data ? { ...mapDocumentFromApi(body.data), owner: body.data.owner || null } : null,
-  }
+      return {
+        ...body,
+        data: body.data ? { ...mapDocumentFromApi(body.data), owner: body.data.owner || null } : null,
+      }
+    },
+    { ttlMs: DOCUMENT_CACHE_TTL_MS },
+  )
 }
 
 export async function getDocumentPreview(input) {
@@ -108,45 +120,61 @@ export async function listMyDocuments(params = {}) {
     size,
   }
 
-  const { data } = await apiClient.get('/documents', { params: query })
-  const body = unwrapApiResponse(data)
+  return cachedRequest(
+    buildCacheKey('documents:mine', query),
+    async () => {
+      const { data } = await apiClient.get('/documents', { params: query })
+      const body = unwrapApiResponse(data)
 
-  return {
-    ...body,
-    data: mapPageResponse(body.data, mapDocumentFromApi),
-  }
+      return {
+        ...body,
+        data: mapPageResponse(body.data, mapDocumentFromApi),
+      }
+    },
+    { ttlMs: DOCUMENT_LIST_CACHE_TTL_MS },
+  )
 }
 
 /** GET /api/documents/public */
 export async function listPublicDocuments(params = {}) {
   const { search = '', page = 0, size = 10 } = params
-
-  const { data } = await apiClient.get('/documents/public', {
-    params: {
-      keyword: search.trim() || undefined,
-      page,
-      size,
-    },
-  })
-
-  const body = unwrapApiResponse(data)
-
-  return {
-    ...body,
-    data: mapPageResponse(body.data, mapDocumentFromApi),
+  const query = {
+    keyword: search.trim() || undefined,
+    page,
+    size,
   }
+
+  return cachedRequest(
+    buildCacheKey('documents:public', query),
+    async () => {
+      const { data } = await apiClient.get('/documents/public', { params: query })
+      const body = unwrapApiResponse(data)
+
+      return {
+        ...body,
+        data: mapPageResponse(body.data, mapDocumentFromApi),
+      }
+    },
+    { ttlMs: DOCUMENT_LIST_CACHE_TTL_MS },
+  )
 }
 
 /** GET /api/documents/public/:id */
 export async function getPublicDocument(id) {
   const docId = normalizeDocId(id)
-  const { data } = await apiClient.get(`/documents/public/${docId}`)
-  const body = unwrapApiResponse(data)
+  return cachedRequest(
+    `documents:public-detail:${docId}`,
+    async () => {
+      const { data } = await apiClient.get(`/documents/public/${docId}`)
+      const body = unwrapApiResponse(data)
 
-  return {
-    ...body,
-    data: body.data ? mapDocumentFromApi(body.data) : null,
-  }
+      return {
+        ...body,
+        data: body.data ? mapDocumentFromApi(body.data) : null,
+      }
+    },
+    { ttlMs: DOCUMENT_CACHE_TTL_MS },
+  )
 }
 
 export async function getPublicDocumentPreview(id) {
@@ -253,6 +281,7 @@ export async function uploadDocument(payload, onProgress) {
   })
 
   const body = unwrapApiResponse(data)
+  invalidateDocumentCaches()
 
   return {
     ...body,
@@ -298,6 +327,8 @@ export async function updateDocument(id, payload) {
     result = await setDocumentVisibility(docId, payload.visibility)
   }
 
+  invalidateDocumentCaches(docId)
+
   return result
     ? {
         ...result,
@@ -314,6 +345,7 @@ export async function deleteDocument(id) {
   const docId = normalizeDocId(id)
   const { data } = await apiClient.delete(`/documents/${docId}`)
   const body = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
 
   return {
     ...body,
@@ -325,6 +357,7 @@ export async function setDocumentVisibility(id, status) {
   const docId = normalizeDocId(id)
   const { data } = await apiClient.patch(`/documents/${docId}/visibility`, { status })
   const body = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
 
   return {
     ...body,
@@ -380,6 +413,18 @@ export async function downloadDocument(doc) {
   window.URL.revokeObjectURL(url)
 
   return { success: true, data: { id: doc.id } }
+}
+
+function invalidateDocumentCaches(docId) {
+  invalidateCache('documents:mine')
+  invalidateCache('documents:public')
+  if (docId) {
+    invalidateCache(`documents:detail:${docId}`)
+    invalidateCache(`documents:public-detail:${docId}`)
+  } else {
+    invalidateCache('documents:detail:')
+    invalidateCache('documents:public-detail:')
+  }
 }
 
 // --- Mock implementations ---

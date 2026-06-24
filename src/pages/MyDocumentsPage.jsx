@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import DocumentEditForm from '../components/documents/DocumentEditForm'
+import ExtractionStatusBadge from '../components/documents/ExtractionStatusBadge'
 import {
   deleteDocument,
   downloadDocument,
@@ -318,6 +319,7 @@ export default function MyDocumentsPage() {
                   <th className="px-6 py-3">Document</th>
                   <th className="px-4 py-3">Subject</th>
                   <th className="px-4 py-3">Visibility</th>
+                  <th className="px-4 py-3">AI Text</th>
                   <th className="px-4 py-3">Size</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3 text-right">Actions</th>
@@ -327,14 +329,14 @@ export default function MyDocumentsPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, idx) => (
                     <tr key={idx} className="border-t border-[#c7c4d8]/15">
-                      <td colSpan={6} className="px-6 py-4">
+                      <td colSpan={7} className="px-6 py-4">
                         <div className="h-8 w-full animate-pulse rounded-lg bg-[#eef0ff]" />
                       </td>
                     </tr>
                   ))
                 ) : data.content.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16">
+                    <td colSpan={7} className="px-6 py-16">
                       <div className="flex flex-col items-center gap-3 text-center">
                         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#eef0ff] text-[#3525cd]">
                           <FileText className="h-6 w-6" />
@@ -390,6 +392,14 @@ export default function MyDocumentsPage() {
                       </td>
                       <td className="px-4 py-4">
                         <VisibilityPill visibility={doc.status} />
+                      </td>
+                      <td className="px-4 py-4">
+                        <ExtractionStatusBadge status={doc.extractionStatus} />
+                        {doc.extractionStatus === 'FAILED' && doc.extractionError && (
+                          <p className="mt-1 max-w-[140px] truncate text-[10px] text-red-600" title={doc.extractionError}>
+                            {doc.extractionError}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatBytes(doc.fileSize)}</td>
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatDate(doc.uploadedAt)}</td>

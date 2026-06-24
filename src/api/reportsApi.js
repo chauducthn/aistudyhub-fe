@@ -1,5 +1,6 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
+import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
 
 export const REPORT_REASONS = [
   { value: 'COPYRIGHT', label: 'Copyright violation' },
@@ -46,6 +47,7 @@ export async function submitDocumentReport(documentId, { reason, description }) 
     reason,
     description: description?.trim() || undefined,
   })
+  invalidateCache('admin:reports')
   const body = unwrapApiResponse(data)
   return {
     ...body,
@@ -58,17 +60,24 @@ export async function listAdminReports({ status = 'ALL', page = 0, size = 10 } =
   const params = { page, size }
   if (status && status !== 'ALL') params.status = status
 
-  const { data } = await apiClient.get('/admin/reports', { params })
-  const body = unwrapApiResponse(data)
-  return {
-    ...body,
-    data: mapPageResponse(body.data, mapReportFromApi),
-  }
+  return cachedRequest(
+    buildCacheKey('admin:reports', params),
+    async () => {
+      const { data } = await apiClient.get('/admin/reports', { params })
+      const body = unwrapApiResponse(data)
+      return {
+        ...body,
+        data: mapPageResponse(body.data, mapReportFromApi),
+      }
+    },
+    { ttlMs: 10_000 },
+  )
 }
 
 /** PATCH /api/admin/reports/:reportId/resolve */
 export async function resolveAdminReport(reportId, payload) {
   const { data } = await apiClient.patch(`/admin/reports/${reportId}/resolve`, payload)
+  invalidateCache('admin:')
   const body = unwrapApiResponse(data)
   return {
     ...body,

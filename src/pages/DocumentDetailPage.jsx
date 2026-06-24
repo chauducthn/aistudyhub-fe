@@ -11,6 +11,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import {
   downloadDocument,
   getDocument,
@@ -196,6 +197,8 @@ export default function DocumentDetailPage() {
               </section>
 
               <aside className="space-y-4">
+                <ExtractionStatusPanel doc={doc} />
+
                 <section className="rounded-2xl border border-[#c7c4d8]/25 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-extrabold text-[#0b1c30]">Document Info</h2>
                   <dl className="mt-5 space-y-4 text-sm">

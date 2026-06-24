@@ -1,5 +1,7 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
+import { listMyDocuments, listPublicDocuments } from './documentsApi'
+import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
 
 
 export function mapChatMessageFromApi(raw) {
@@ -22,6 +24,7 @@ export async function sendChatMessage({ message, documentId } = {}) {
   if (documentId) body.documentId = Number(documentId)
 
   const { data } = await apiClient.post('/chatbot/messages', body)
+  invalidateCache('chatbot:history')
   const res = unwrapApiResponse(data)
   return {
     ...res,
@@ -31,18 +34,45 @@ export async function sendChatMessage({ message, documentId } = {}) {
 
 /** GET /api/chatbot/history */
 export async function getChatHistory({ page = 0, size = 20 } = {}) {
-  const { data } = await apiClient.get('/chatbot/history', {
-    params: { page, size },
-  })
-  const res = unwrapApiResponse(data)
-  return {
-    ...res,
-    data: mapPageResponse(res.data, mapChatMessageFromApi),
-  }
+  const params = { page, size }
+  return cachedRequest(
+    buildCacheKey('chatbot:history', params),
+    async () => {
+      const { data } = await apiClient.get('/chatbot/history', { params })
+      const res = unwrapApiResponse(data)
+      return {
+        ...res,
+        data: mapPageResponse(res.data, mapChatMessageFromApi),
+      }
+    },
+    { ttlMs: 10_000 },
+  )
 }
 
 /** DELETE /api/chatbot/history */
 export async function clearChatHistory() {
   const { data } = await apiClient.delete('/chatbot/history')
+  invalidateCache('chatbot:history')
   return unwrapApiResponse(data)
+}
+
+/** Merge own + public documents eligible for chat context (SCRUM-46 / SCRUM-49). */
+export async function listChatContextDocuments() {
+  const [mineRes, publicRes] = await Promise.all([
+    listMyDocuments({ page: 0, size: 100 }).catch(() => ({ success: false, data: { content: [] } })),
+    listPublicDocuments({ page: 0, size: 100 }).catch(() => ({ success: false, data: { content: [] } })),
+  ])
+
+  const map = new Map()
+  if (mineRes.success) {
+    mineRes.data.content.forEach((doc) => map.set(doc.id, { ...doc, source: 'mine' }))
+  }
+  if (publicRes.success) {
+    publicRes.data.content.forEach((doc) => {
+      if (!map.has(doc.id)) map.set(doc.id, { ...doc, source: 'public' })
+    })
+  }
+
+  const list = [...map.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return { success: true, data: list, message: null }
 }
