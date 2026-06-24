@@ -28,7 +28,7 @@ export default function DocumentContextSelect({
             <option value="">No document (general help)</option>
             {documents.map((d) => (
               <option key={d.id} value={d.id} disabled={d.extractionStatus === 'FAILED'}>
-                {d.title} [{d.extractionStatus || 'PENDING'}]
+                {d.title}
                 {d.source === 'public' ? ' · public' : ''}
                 {d.extractionStatus === 'FAILED' ? ' · unavailable' : ''}
               </option>

@@ -1,6 +1,7 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
 import { listMyDocuments, listPublicDocuments } from './documentsApi'
+import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
 
 
 export function mapChatMessageFromApi(raw) {
@@ -23,6 +24,7 @@ export async function sendChatMessage({ message, documentId } = {}) {
   if (documentId) body.documentId = Number(documentId)
 
   const { data } = await apiClient.post('/chatbot/messages', body)
+  invalidateCache('chatbot:history')
   const res = unwrapApiResponse(data)
   return {
     ...res,
@@ -32,19 +34,25 @@ export async function sendChatMessage({ message, documentId } = {}) {
 
 /** GET /api/chatbot/history */
 export async function getChatHistory({ page = 0, size = 20 } = {}) {
-  const { data } = await apiClient.get('/chatbot/history', {
-    params: { page, size },
-  })
-  const res = unwrapApiResponse(data)
-  return {
-    ...res,
-    data: mapPageResponse(res.data, mapChatMessageFromApi),
-  }
+  const params = { page, size }
+  return cachedRequest(
+    buildCacheKey('chatbot:history', params),
+    async () => {
+      const { data } = await apiClient.get('/chatbot/history', { params })
+      const res = unwrapApiResponse(data)
+      return {
+        ...res,
+        data: mapPageResponse(res.data, mapChatMessageFromApi),
+      }
+    },
+    { ttlMs: 10_000 },
+  )
 }
 
 /** DELETE /api/chatbot/history */
 export async function clearChatHistory() {
   const { data } = await apiClient.delete('/chatbot/history')
+  invalidateCache('chatbot:history')
   return unwrapApiResponse(data)
 }
 
