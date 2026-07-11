@@ -11,6 +11,7 @@ export function mapChatMessageFromApi(raw) {
     userId: raw.userId,
     documentId: raw.documentId != null ? String(raw.documentId) : null,
     documentTitle: raw.documentTitle || null,
+    sessionId: raw.sessionId != null ? String(raw.sessionId) : null,
     message: raw.message ?? '',
     response: raw.response ?? '',
     model: raw.model || null,
@@ -18,10 +19,10 @@ export function mapChatMessageFromApi(raw) {
   }
 }
 
-/** POST /api/chatbot/messages */
-export async function sendChatMessage({ message, documentId } = {}) {
+export async function sendChatMessage({ message, documentId, sessionId } = {}) {
   const body = { message: (message || '').trim() }
   if (documentId) body.documentId = Number(documentId)
+  if (sessionId) body.sessionId = Number(sessionId)
 
   const { data } = await apiClient.post('/chatbot/messages', body)
   invalidateCache('chatbot:history')
@@ -32,7 +33,27 @@ export async function sendChatMessage({ message, documentId } = {}) {
   }
 }
 
-/** GET /api/chatbot/history */
+export async function getChatSessions() {
+  const { data } = await apiClient.get('/chatbot/sessions')
+  return unwrapApiResponse(data)
+}
+
+export async function getSessionMessages(sessionId, { page = 0, size = 100 } = {}) {
+  const params = { page, size }
+  const { data } = await apiClient.get(`/chatbot/sessions/${sessionId}/messages`, { params })
+  const res = unwrapApiResponse(data)
+  return {
+    ...res,
+    data: mapPageResponse(res.data, mapChatMessageFromApi),
+  }
+}
+
+export async function deleteChatSession(sessionId) {
+  const { data } = await apiClient.delete(`/chatbot/sessions/${sessionId}`)
+  invalidateCache('chatbot:history')
+  return unwrapApiResponse(data)
+}
+
 export async function getChatHistory({ page = 0, size = 20 } = {}) {
   const params = { page, size }
   return cachedRequest(
@@ -49,7 +70,6 @@ export async function getChatHistory({ page = 0, size = 20 } = {}) {
   )
 }
 
-/** DELETE /api/chatbot/history */
 export async function clearChatHistory() {
   const { data } = await apiClient.delete('/chatbot/history')
   invalidateCache('chatbot:history')

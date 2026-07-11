@@ -5,6 +5,7 @@ import {
   EyeOff,
   Loader2,
   Lock,
+  Search,
   Trash2,
   X,
 } from 'lucide-react'
@@ -30,7 +31,9 @@ function formatDate(value) {
 }
 
 export default function AdminReportsPage() {
-  const [status, setStatus] = useState('PENDING')
+  const [tab, setTab] = useState('pending')
+  const [keywordInput, setKeywordInput] = useState('')
+  const [keyword, setKeyword] = useState('')
   const [reasonFilter, setReasonFilter] = useState('ALL')
   const [page, setPage] = useState(0)
   const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 })
@@ -40,6 +43,8 @@ export default function AdminReportsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [adminNote, setAdminNote] = useState('')
+
+  const queryStatus = tab === 'pending' ? 'PENDING' : 'PROCESSED'
 
   const applyReportsData = useCallback((reportsData) => {
     setData(reportsData)
@@ -53,7 +58,7 @@ export default function AdminReportsPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await listAdminReports({ status, page, size: PAGE_SIZE })
+      const res = await listAdminReports({ status: queryStatus, keyword, page, size: PAGE_SIZE })
       if (!res.success) throw new Error(res.message || 'Could not load reports.')
       applyReportsData(res.data)
     } catch (err) {
@@ -61,12 +66,12 @@ export default function AdminReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [applyReportsData, page, status])
+  }, [applyReportsData, page, queryStatus, keyword])
 
   useEffect(() => {
     let ignore = false
 
-    listAdminReports({ status, page, size: PAGE_SIZE })
+    listAdminReports({ status: queryStatus, keyword, page, size: PAGE_SIZE })
       .then((res) => {
         if (ignore) return
         if (!res.success) throw new Error(res.message || 'Could not load reports.')
@@ -83,7 +88,7 @@ export default function AdminReportsPage() {
     return () => {
       ignore = true
     }
-  }, [applyReportsData, status, page])
+  }, [applyReportsData, queryStatus, keyword, page])
 
   const filteredRows = useMemo(() => {
     if (reasonFilter === 'ALL') return data.content
@@ -145,31 +150,60 @@ export default function AdminReportsPage() {
           </p>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="sm:w-48">
-            <label className="text-sm font-bold text-[#0b1c30]">Status</label>
-            <select
-              value={status}
-              onChange={(e) => {
-                setLoading(true)
-                setStatus(e.target.value)
-                setPage(0)
-              }}
-              className="auth-input mt-2"
-            >
-              {REPORT_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+        <div className="mt-6 flex border-b border-[#c7c4d8]/20">
+          <button
+            onClick={() => {
+              setTab('pending')
+              setPage(0)
+              setSelected(null)
+            }}
+            className={`px-5 py-3 text-sm font-bold border-b-2 transition ${
+              tab === 'pending'
+                ? 'border-[#3525cd] text-[#3525cd]'
+                : 'border-transparent text-[#74798a] hover:text-[#0b1c30]'
+            }`}
+          >
+            Active Reports
+          </button>
+          <button
+            onClick={() => {
+              setTab('history')
+              setPage(0)
+              setSelected(null)
+            }}
+            className={`px-5 py-3 text-sm font-bold border-b-2 transition ${
+              tab === 'history'
+                ? 'border-[#3525cd] text-[#3525cd]'
+                : 'border-transparent text-[#74798a] hover:text-[#0b1c30]'
+            }`}
+          >
+            Processed History
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            setKeyword(keywordInput.trim())
+            setPage(0)
+          }}
+          className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end rounded-2xl border border-[#c7c4d8]/25 bg-white p-4 shadow-sm"
+        >
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#74798a]" />
+            <input
+              type="search"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              placeholder="Search reports by document title, reporter email, or description..."
+              className="auth-input h-12 !pl-11"
+            />
           </div>
           <div className="sm:w-56">
-            <label className="text-sm font-bold text-[#0b1c30]">Reason</label>
             <select
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value)}
-              className="auth-input mt-2"
+              className="h-12 w-full rounded-xl border border-[#c7c4d8]/50 bg-white px-3 text-sm font-semibold text-[#0b1c30] outline-none focus:border-[#3525cd]"
             >
               {REASON_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -178,7 +212,28 @@ export default function AdminReportsPage() {
               ))}
             </select>
           </div>
-        </div>
+          <button
+            type="submit"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white transition hover:bg-[#2d1fb0]"
+          >
+            <Search className="h-4 w-4" />
+            Search
+          </button>
+          {(keyword || reasonFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setKeywordInput('')
+                setKeyword('')
+                setReasonFilter('ALL')
+                setPage(0)
+              }}
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-[#c7c4d8]/40 bg-white px-3 text-sm font-bold text-[#464555] transition hover:bg-[#eff4ff]"
+            >
+              Reset
+            </button>
+          )}
+        </form>
 
         {error && (
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">

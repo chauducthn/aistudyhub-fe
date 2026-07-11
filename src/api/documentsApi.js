@@ -289,6 +289,46 @@ export async function uploadDocument(payload, onProgress) {
   }
 }
 
+export async function uploadDocuments(payload, onProgress) {
+  if (USE_MOCK) {
+    return uploadDocumentsMock(payload, onProgress)
+  }
+
+  const files = payload.files || (payload.file ? [payload.file] : [])
+  const formData = new FormData()
+  files.forEach((f) => formData.append('files', f))
+  if (payload.title?.trim()) {
+    formData.append('title', payload.title.trim())
+  }
+  if (payload.description?.trim()) {
+    formData.append('description', payload.description.trim())
+  }
+  if (payload.subjectId) {
+    formData.append('subjectId', String(payload.subjectId))
+  }
+
+  const { data } = await apiClient.post('/documents/batch', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (event) => {
+      if (!onProgress) return
+
+      const percent = event.total
+        ? Math.round((event.loaded * 100) / event.total)
+        : 0
+
+      onProgress(percent)
+    },
+  })
+
+  const body = unwrapApiResponse(data)
+  invalidateDocumentCaches()
+
+  return {
+    ...body,
+    data: Array.isArray(body.data) ? body.data.map(mapDocumentFromApi) : [],
+  }
+}
+
 export async function updateDocument(id, payload) {
   if (USE_MOCK) {
     return updateDocumentMock(id, payload)
@@ -350,6 +390,30 @@ export async function deleteDocument(id) {
   return {
     ...body,
     data: body.data || { id: String(id) },
+  }
+}
+
+export async function runPlagiarismCheck(id) {
+  if (USE_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    return {
+      success: true,
+      message: 'Plagiarism check completed',
+      data: {
+        plagiarismReport: '### Plagiarism Report\n\n- **Score**: 12%\n- **Sources**:\n  - [Wikipedia: Neural Networks](https://en.wikipedia.org/neural_networks) (10% similarity)\n\nOriginal content matched with public online knowledge.',
+        plagiarismCheckedAt: new Date().toISOString(),
+      },
+    }
+  }
+
+  const docId = normalizeDocId(id)
+  const { data } = await apiClient.post(`/documents/${docId}/plagiarism-check`)
+  const body = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
+
+  return {
+    ...body,
+    data: body.data ? mapDocumentFromApi(body.data) : null,
   }
 }
 
@@ -529,6 +593,37 @@ async function uploadDocumentMock(payload, onProgress) {
     success: true,
     message: 'Document uploaded (mock).',
     data: newDoc,
+  }
+}
+
+async function uploadDocumentsMock(payload, onProgress) {
+  for (let percent = 0; percent <= 100; percent += 10) {
+    await delay(80)
+    onProgress?.(percent)
+  }
+
+  const files = payload.files || (payload.file ? [payload.file] : [])
+  const created = files.map((file, i) => {
+    return {
+      id: `doc-${Date.now()}-${i}`,
+      title: payload.title || file.name,
+      description: payload.description,
+      subjectId: payload.subjectId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: 'pdf',
+      uploadedAt: new Date().toISOString(),
+      status: 'PRIVATE',
+      visibility: 'PRIVATE',
+    }
+  })
+
+  documentsStore = [...created, ...documentsStore]
+
+  return {
+    success: true,
+    message: 'Documents uploaded (mock).',
+    data: created,
   }
 }
 

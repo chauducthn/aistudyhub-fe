@@ -5,6 +5,9 @@ import {
   getChatHistory,
   listChatContextDocuments,
   sendChatMessage,
+  getChatSessions,
+  getSessionMessages,
+  deleteChatSession,
 } from '../api/chatbotApi'
 import { expandToBubbles, recordsToBubbles } from '../utils/chatBubbles'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -21,6 +24,9 @@ export function useChatbot() {
   const [error, setError] = useState('')
   const scrollRef = useRef(null)
 
+  const [sessions, setSessions] = useState([])
+  const [currentSessionId, setCurrentSessionId] = useState(null)
+
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
       const el = scrollRef.current
@@ -28,18 +34,60 @@ export function useChatbot() {
     })
   }, [])
 
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await getChatSessions()
+      if (res.success) {
+        setSessions(res.data || [])
+      }
+    } catch (err) {
+    }
+  }, [])
+
+  const selectSession = async (id) => {
+    setCurrentSessionId(id)
+    setLoadingHistory(true)
+    setError('')
+    try {
+      const res = await getSessionMessages(id, { page: 0, size: 100 })
+      if (res.success) {
+        setBubbles(recordsToBubbles(res.data.content || []))
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not load session messages.'))
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const createNewSession = () => {
+    setCurrentSessionId(null)
+    setBubbles([])
+  }
+
+  const handleDeleteSession = async (id, event) => {
+    event?.stopPropagation?.()
+    try {
+      await deleteChatSession(id)
+      loadSessions()
+      if (String(currentSessionId) === String(id)) {
+        createNewSession()
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not delete session.'))
+    }
+  }
+
   useEffect(() => {
     let ignore = false
     ;(async () => {
       try {
-        const [historyRes, docsRes] = await Promise.all([
-          getChatHistory({ page: 0, size: 50 }),
+        const [docsRes] = await Promise.all([
           listChatContextDocuments(),
+          loadSessions(),
         ])
         if (ignore) return
-        if (historyRes.success) {
-          setBubbles(recordsToBubbles(historyRes.data.content || []))
-        }
+
         if (docsRes.success) setDocuments(docsRes.data || [])
         const preselect = searchParams.get('doc')
         if (preselect && docsRes.success) {
@@ -47,7 +95,7 @@ export function useChatbot() {
           if (exists) setDocumentId(String(preselect))
         }
       } catch (err) {
-        if (!ignore) setError(getApiErrorMessage(err, 'Could not load chat history.'))
+        if (!ignore) setError(getApiErrorMessage(err, 'Could not load chat data.'))
       } finally {
         if (!ignore) setLoadingHistory(false)
       }
@@ -55,7 +103,7 @@ export function useChatbot() {
     return () => {
       ignore = true
     }
-  }, [searchParams])
+  }, [searchParams, loadSessions])
 
   useEffect(() => {
     scrollToBottom()
@@ -73,12 +121,22 @@ export function useChatbot() {
     setBubbles((prev) => [...prev, { key: tempKey, role: 'user', text, at: new Date().toISOString() }])
 
     try {
-      const res = await sendChatMessage({ message: text, documentId: documentId || undefined })
+      const res = await sendChatMessage({
+        message: text,
+        documentId: documentId || undefined,
+        sessionId: currentSessionId || undefined,
+      })
       if (!res.success || !res.data) throw new Error(res.message || 'No response from assistant.')
+      
       setBubbles((prev) => [
         ...prev.filter((b) => b.key !== tempKey),
         ...expandToBubbles(res.data),
       ])
+
+      if (!currentSessionId && res.data.sessionId) {
+        setCurrentSessionId(String(res.data.sessionId))
+      }
+      loadSessions()
     } catch (err) {
       setBubbles((prev) => prev.filter((b) => b.key !== tempKey))
       setInput(text)
@@ -101,6 +159,8 @@ export function useChatbot() {
       const res = await clearChatHistory()
       if (!res.success) throw new Error(res.message)
       setBubbles([])
+      createNewSession()
+      loadSessions()
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not clear history.'))
     } finally {
@@ -122,5 +182,10 @@ export function useChatbot() {
     scrollRef,
     send,
     clear,
+    sessions,
+    currentSessionId,
+    selectSession,
+    createNewSession,
+    handleDeleteSession,
   }
 }

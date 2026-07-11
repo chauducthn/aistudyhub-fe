@@ -260,7 +260,6 @@ export default function AdminUsersPage() {
                     />
                   </th>
                   <th className="px-4 py-4">User</th>
-                  <th className="px-4 py-4">Phone</th>
                   <th className="px-4 py-4">Role</th>
                   <th className="px-4 py-4">Status</th>
                   <th className="px-4 py-4">Joined</th>
@@ -294,7 +293,6 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-5 text-sm font-semibold text-slate-600">{user.phone || '—'}</td>
                     <td className="px-4 py-5 text-sm font-bold">{user.role}</td>
                     <td className="px-4 py-5">
                       <StatusBadge status={user.status} />
@@ -316,7 +314,7 @@ export default function AdminUsersPage() {
                 ))}
                 {!loading && users.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-sm font-bold text-slate-500">
+                    <td colSpan="6" className="px-6 py-12 text-center text-sm font-bold text-slate-500">
                       No accounts match your search.
                     </td>
                   </tr>
@@ -504,35 +502,52 @@ function EditUserModal({ user, saving, onClose, onSave }) {
 }
 
 function ResetPasswordModal({ user, saving, onClose, onSave }) {
-  const [pw, setPw] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [err, setErr] = useState('')
 
   const submit = (e) => {
     e.preventDefault()
-    if (pw.trim().length < 8) {
+    if (!newPassword.trim()) {
+      setErr('New password is required.')
+      return
+    }
+    if (newPassword.length < 8) {
       setErr('Password must be at least 8 characters.')
       return
     }
-    onSave(pw.trim())
+    if (newPassword !== confirmPassword) {
+      setErr('Passwords do not match.')
+      return
+    }
+    onSave(newPassword)
   }
 
   return (
     <Modal onClose={onClose} title={`Reset password — ${user.fullName}`}>
       <form onSubmit={submit} className="space-y-4" noValidate>
+        <p className="text-sm font-semibold text-slate-600">
+          Set a new password for <strong>{user.fullName}</strong>. The user will be logged out of all active sessions.
+        </p>
         <div>
           <label className="text-sm font-bold text-[#0b1c30]">New password</label>
           <input
-            type="text"
-            value={pw}
-            onChange={(e) => { setPw(e.target.value); if (err) setErr('') }}
-            placeholder="Min. 8 characters"
+            type="password"
+            value={newPassword}
+            onChange={(e) => { setNewPassword(e.target.value); if (err) setErr('') }}
             className={`mt-1.5 h-11 w-full rounded-lg border px-4 font-semibold outline-none focus:border-[#3b2be0] ${err ? 'border-red-400' : 'border-slate-200'}`}
             autoFocus
           />
+        </div>
+        <div>
+          <label className="text-sm font-bold text-[#0b1c30]">Confirm password</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => { setConfirmPassword(e.target.value); if (err) setErr('') }}
+            className={`mt-1.5 h-11 w-full rounded-lg border px-4 font-semibold outline-none focus:border-[#3b2be0] ${err ? 'border-red-400' : 'border-slate-200'}`}
+          />
           {err && <p className="mt-1 text-xs font-semibold text-red-600">{err}</p>}
-          <p className="mt-1.5 text-xs font-semibold text-slate-500">
-            The user will be signed out everywhere and must use this new password.
-          </p>
         </div>
         <ModalActions saving={saving} submitLabel="Reset Password" onClose={onClose} />
       </form>
