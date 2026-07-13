@@ -51,7 +51,7 @@ function highlight(text, keyword) {
   )
 }
 
-export default function AdvancedSearchPage() {
+export default function AdvancedSearchPage({ isEmbedded = false }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialQ = searchParams.get('q') || ''
 
@@ -144,15 +144,16 @@ export default function AdvancedSearchPage() {
 
   const filtersActive = scope !== 'mine' || !!subjectId || !!fileType
 
-  return (
-    <DashboardShell>
-      <div className="px-4 py-8 sm:px-6 lg:px-8">
-        <div>
+  const content = (
+    <div className={isEmbedded ? '' : 'px-4 py-8 sm:px-6 lg:px-8'}>
+      {!isEmbedded && (
+        <div className="mb-6">
           <h1 className="text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">Advanced Search</h1>
           <p className="mt-2 text-base text-[#464555]">
             Full-text search across titles, file names and descriptions.
           </p>
         </div>
+      )}
 
         <form onSubmit={runSearch} className="mt-6 rounded-2xl border border-[#c7c4d8]/25 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row">
@@ -357,6 +358,9 @@ export default function AdvancedSearchPage() {
           )}
         </div>
       </div>
-    </DashboardShell>
-  )
+    )
+
+  if (isEmbedded) return content
+
+  return <DashboardShell>{content}</DashboardShell>
 }

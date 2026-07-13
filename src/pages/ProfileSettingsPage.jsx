@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import DashboardShell from '../components/DashboardShell'
 import { useAuth } from '../context/useAuth'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -14,6 +15,8 @@ function resolveMediaUrl(url) {
 
 export default function ProfileSettingsPage() {
   const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword } = useAuth()
+  const location = useLocation()
+  const forcePasswordReset = location.state?.forcePasswordReset || user?.passwordResetRequired
   const [avatarFile, setAvatarFile] = useState(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -139,6 +142,12 @@ export default function ProfileSettingsPage() {
             Update your personal information and secure your account.
           </p>
         </div>
+        {forcePasswordReset && (
+          <div className="mt-6 flex items-center gap-3 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm font-bold text-amber-800">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-extrabold">!</span>
+            <span>Your password has been reset by an administrator. You must change your password before you can use the application.</span>
+          </div>
+        )}
 
         <div className="mt-10 grid gap-8 xl:grid-cols-[1fr_1fr]">
           <article className="rounded-2xl bg-white p-8 shadow-sm">
@@ -156,31 +165,7 @@ export default function ProfileSettingsPage() {
               </div>
             </div>
 
-            <form onSubmit={handleProfileSubmit} className="mt-8 space-y-6">
-              {profileError && <Alert tone="error">{profileError}</Alert>}
-              {profileMessage && <Alert>{profileMessage}</Alert>}
-
-              <Field label="Full Name" htmlFor="fullName">
-                <input
-                  id="fullName"
-                  name="fullName"
-                  key={user?.fullName || 'fullName'}
-                  defaultValue={user?.fullName || ''}
-                  className="auth-input"
-                  required
-                />
-              </Field>
-
-              <button
-                type="submit"
-                disabled={savingProfile}
-                className="h-12 rounded-lg bg-[#3b2be0] px-7 font-bold text-white disabled:opacity-60"
-              >
-                {savingProfile ? 'Saving...' : 'Save Profile'}
-              </button>
-            </form>
-
-            <form onSubmit={handleAvatarSubmit} className="mt-8 border-t border-slate-100 pt-8">
+            <form onSubmit={handleAvatarSubmit} className="mt-8 border-b border-slate-100 pb-8">
               {avatarError && <Alert tone="error">{avatarError}</Alert>}
               {avatarMessage && <Alert>{avatarMessage}</Alert>}
 
@@ -213,6 +198,30 @@ export default function ProfileSettingsPage() {
                   </button>
                 )}
               </div>
+            </form>
+
+            <form onSubmit={handleProfileSubmit} className="mt-8 space-y-6">
+              {profileError && <Alert tone="error">{profileError}</Alert>}
+              {profileMessage && <Alert>{profileMessage}</Alert>}
+
+              <Field label="Full Name" htmlFor="fullName">
+                <input
+                  id="fullName"
+                  name="fullName"
+                  key={user?.fullName || 'fullName'}
+                  defaultValue={user?.fullName || ''}
+                  className="auth-input"
+                  required
+                />
+              </Field>
+
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="h-12 rounded-lg bg-[#3b2be0] px-7 font-bold text-white disabled:opacity-60"
+              >
+                {savingProfile ? 'Saving...' : 'Save Profile'}
+              </button>
             </form>
           </article>
 

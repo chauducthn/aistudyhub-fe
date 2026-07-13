@@ -11,9 +11,8 @@ export function getApiErrorMessage(err, fallback = 'Có lỗi xảy ra.') {
   }
 
   if (err.response.status === 502) {
-    return (
-      'Backend chưa chạy (502). Chạy Spring Boot trên cổng 8081 (aistudyhub-be\\run-dev.ps1) trước khi đăng ký/đăng nhập.'
-    )
+    return err.response?.data?.message
+      || 'Backend hoặc AI service chưa phản hồi (502). Kiểm tra backend tại http://localhost:8081/api/health và cấu hình AI provider.'
   }
 
   if (err.response.status === 403) {

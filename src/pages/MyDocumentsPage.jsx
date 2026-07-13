@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import AdvancedSearchPage from './AdvancedSearchPage'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -60,6 +61,8 @@ const fileTypeStyle = {
 
 export default function MyDocumentsPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'list'
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [subjectId, setSubjectId] = useState('')
@@ -211,21 +214,56 @@ export default function MyDocumentsPage() {
   return (
     <DashboardShell>
       <div className="px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end mb-6">
           <div>
             <h1 className="text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">My Documents</h1>
             <p className="mt-2 text-base text-[#464555]">
-              {loading ? 'Loading...' : `${data.totalElements} documents in your library.`}
+              {tab === 'search'
+                ? 'Full-text search across titles, file names and descriptions.'
+                : (loading ? 'Loading...' : `${data.totalElements} documents in your library.`)}
             </p>
           </div>
-          <Link
-            to="/upload"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0]"
-          >
-            <Plus className="h-4 w-4" />
-            Upload Document
-          </Link>
+          {tab !== 'search' && (
+            <Link
+              to="/upload"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0]"
+            >
+              <Plus className="h-4 w-4" />
+              Upload Document
+            </Link>
+          )}
         </div>
+
+        {/* Tab Selection */}
+        <div className="border-b border-[#c7c4d8]/20 mb-6 flex gap-6">
+          <button
+            type="button"
+            onClick={() => setSearchParams({ tab: 'list' })}
+            className={`pb-3 text-sm font-bold border-b-2 transition ${
+              tab === 'list'
+                ? 'border-[#3525cd] text-[#3525cd]'
+                : 'border-transparent text-[#74798a] hover:text-[#0b1c30]'
+            }`}
+          >
+            Document List
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchParams({ tab: 'search' })}
+            className={`pb-3 text-sm font-bold border-b-2 transition ${
+              tab === 'search'
+                ? 'border-[#3525cd] text-[#3525cd]'
+                : 'border-transparent text-[#74798a] hover:text-[#0b1c30]'
+            }`}
+          >
+            Advanced Search
+          </button>
+        </div>
+
+        {tab === 'search' ? (
+          <AdvancedSearchPage isEmbedded={true} />
+        ) : (
+          <>
 
         <section className="mt-6 rounded-2xl border border-[#c7c4d8]/25 bg-white p-4 shadow-sm">
           <form onSubmit={handleSearchSubmit} className="grid gap-3 lg:grid-cols-[1.6fr_1fr_1fr_auto]">
@@ -506,6 +544,8 @@ export default function MyDocumentsPage() {
             onCancel={() => setDeletingId(null)}
             onConfirm={handleConfirmDelete}
           />
+        )}
+          </>
         )}
       </div>
     </DashboardShell>

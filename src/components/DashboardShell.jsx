@@ -73,7 +73,7 @@ export default function DashboardShell({ type = 'user', children }) {
           <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-[#74798a]">
             Main Menu
           </p>
-          {(isAdmin ? adminMainNav : userNav).map((item) => (
+          {(!user?.passwordResetRequired ? (isAdmin ? adminMainNav : userNav) : []).map((item) => (
             <NavLink
               key={item.label}
               to={item.to}
@@ -121,33 +121,35 @@ export default function DashboardShell({ type = 'user', children }) {
       <div className="lg:pl-[260px]">
         <header className="sticky top-0 z-30 border-b border-[#c7c4d8]/25 bg-white/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-3 lg:gap-4">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const q = headerSearch.trim()
-                if (userIsAdmin) {
-                  navigate(q ? `/admin/documents?keyword=${encodeURIComponent(q)}` : '/admin/documents')
-                } else {
-                  navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search')
-                }
-              }}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#c7c4d8]/40 bg-[#f8f9ff] px-3 py-2"
-            >
-              <Search className="h-4 w-4 shrink-0 text-[#74798a]" aria-hidden />
-              <input
-                type="search"
-                value={headerSearch}
-                onChange={(e) => setHeaderSearch(e.target.value)}
-                placeholder={
-                  isAdmin
-                    ? 'Search all documents...'
-                    : 'Search documents, subjects, or notes...'
-                }
-                className="min-w-0 flex-1 bg-transparent text-sm text-[#0b1c30] outline-none placeholder:text-[#74798a]"
-              />
-            </form>
+            {!user?.passwordResetRequired && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const q = headerSearch.trim()
+                  if (userIsAdmin) {
+                    navigate(q ? `/admin/documents?keyword=${encodeURIComponent(q)}` : '/admin/documents')
+                  } else {
+                    navigate(q ? `/documents?tab=search&q=${encodeURIComponent(q)}` : '/documents?tab=search')
+                  }
+                }}
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#c7c4d8]/40 bg-[#f8f9ff] px-3 py-2"
+              >
+                <Search className="h-4 w-4 shrink-0 text-[#74798a]" aria-hidden />
+                <input
+                  type="search"
+                  value={headerSearch}
+                  onChange={(e) => setHeaderSearch(e.target.value)}
+                  placeholder={
+                    isAdmin
+                      ? 'Search all documents...'
+                      : 'Search documents, subjects, or notes...'
+                  }
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#0b1c30] outline-none placeholder:text-[#74798a]"
+                />
+              </form>
+            )}
 
-            {!isAdmin && (
+            {!isAdmin && !user?.passwordResetRequired && (
               <Link
                 to="/upload"
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#57dffe] px-4 text-sm font-bold text-[#0b1c30] shadow-sm"

@@ -56,9 +56,10 @@ export async function submitDocumentReport(documentId, { reason, description }) 
 }
 
 /** GET /api/admin/reports */
-export async function listAdminReports({ status = 'ALL', page = 0, size = 10 } = {}) {
+export async function listAdminReports({ status = 'ALL', keyword = '', page = 0, size = 10 } = {}) {
   const params = { page, size }
   if (status && status !== 'ALL') params.status = status
+  if (keyword) params.keyword = keyword
 
   return cachedRequest(
     buildCacheKey('admin:reports', params),

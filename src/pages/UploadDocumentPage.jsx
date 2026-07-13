@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
-import { listSubjects, uploadDocument } from '../api/documentsApi'
+import { listSubjects, uploadDocuments } from '../api/documentsApi'
 import { createSubject } from '../api/subjectsApi'
 import { extractionStatusMeta } from '../utils/extractionStatus'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -36,6 +36,7 @@ const ALLOWED_EXTENSIONS = [
 ]
 const MAX_SIZE_MB = 20
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
+const MAX_FILES = 10
 
 function getExtension(name = '') {
   const idx = name.lastIndexOf('.')
@@ -51,6 +52,9 @@ function formatBytes(bytes) {
 
 function validateFile(file) {
   if (!file) return 'Please select a file.'
+  if (file.webkitRelativePath || file.name.includes('/') || file.name.includes('\\')) {
+    return 'Folders cannot be uploaded. Select individual files only.'
+  }
   const ext = getExtension(file.name)
   if (!ALLOWED_EXTENSIONS.includes(ext)) {
     return `Unsupported file type. Allowed: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}.`
@@ -61,6 +65,18 @@ function validateFile(file) {
   return ''
 }
 
+function getFilesFromDrop(event) {
+  const items = Array.from(event.dataTransfer.items || [])
+  const hasDirectory = items.some((item) => {
+    const entry = item.webkitGetAsEntry?.()
+    return entry?.isDirectory
+  })
+  if (hasDirectory) {
+    return { files: [], error: 'Folders cannot be uploaded. Select individual files only.' }
+  }
+  return { files: Array.from(event.dataTransfer.files || []), error: '' }
+}
+
 export default function UploadDocumentPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
@@ -68,11 +84,11 @@ export default function UploadDocumentPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [subjectId, setSubjectId] = useState('')
-  const [file, setFile] = useState(null)
+  const [files, setFiles] = useState([])
   const [fileError, setFileError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [uploadedDoc, setUploadedDoc] = useState(null)
+  const [uploadedDocs, setUploadedDocs] = useState([])
   const [progress, setProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -115,29 +131,44 @@ export default function UploadDocumentPage() {
     }
   }
 
-  const handleFile = (next) => {
+  const handleFiles = (nextFiles) => {
     setError('')
     setSuccess('')
-    if (!next) {
-      setFile(null)
+    setUploadedDocs([])
+
+    const selected = Array.from(nextFiles || [])
+    if (selected.length === 0) {
+      setFiles([])
       setFileError('')
       return
     }
-    const validation = validateFile(next)
+
+    if (selected.length > MAX_FILES) {
+      setFiles([])
+      setFileError(`You can upload up to ${MAX_FILES} files at once.`)
+      return
+    }
+
+    const validation = selected.map(validateFile).find(Boolean)
     if (validation) {
-      setFile(null)
+      setFiles([])
       setFileError(validation)
       return
     }
-    setFile(next)
+    setFiles(selected)
     setFileError('')
   }
 
   const handleDrop = (event) => {
     event.preventDefault()
     setDragOver(false)
-    const dropped = event.dataTransfer.files?.[0]
-    if (dropped) handleFile(dropped)
+    const dropped = getFilesFromDrop(event)
+    if (dropped.error) {
+      setFiles([])
+      setFileError(dropped.error)
+      return
+    }
+    handleFiles(dropped.files)
   }
 
   const handleSubmit = async (event) => {
@@ -145,21 +176,25 @@ export default function UploadDocumentPage() {
     setError('')
     setSuccess('')
 
-    if (!title.trim()) return setError('Title is required.')
     if (title.trim().length > 255) return setError('Title must not exceed 255 characters.')
-    if (!file) return setError('Please select a file to upload.')
+    if (files.length === 0) return setError('Please select at least one file to upload.')
 
     setUploading(true)
     setProgress(0)
     try {
-      const res = await uploadDocument(
-        { title: title.trim(), description: description.trim(), subjectId, file },
+      const res = await uploadDocuments(
+        { title: title.trim(), description: description.trim(), subjectId, files },
         setProgress,
       )
       if (!res.success) throw new Error(res.message || 'Upload failed.')
-      setUploadedDoc(res.data)
-      const extractionLabel = extractionStatusMeta(res.data?.extractionStatus).label
-      setSuccess(`Document uploaded. AI text status: ${extractionLabel}.`)
+      setUploadedDocs(res.data || [])
+      const uploadedCount = res.data?.length || 0
+      const extractionLabel = uploadedCount === 1 ? extractionStatusMeta(res.data?.[0]?.extractionStatus).label : null
+      setSuccess(
+        uploadedCount === 1
+          ? `Document uploaded. AI text status: ${extractionLabel}.`
+          : `${uploadedCount} documents uploaded.`,
+      )
       setTimeout(() => navigate('/documents'), 2800)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed. Please try again.'))
@@ -168,10 +203,20 @@ export default function UploadDocumentPage() {
     }
   }
 
-  const removeFile = () => {
-    handleFile(null)
+  const removeFile = (name) => {
+    const nextFiles = files.filter((item) => item.name !== name)
+    setFiles(nextFiles)
+    setUploadedDocs([])
+    setFileError('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
+
+  const clearFiles = () => {
+    handleFiles([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const file = files[0] || null
 
   return (
     <DashboardShell>
@@ -188,7 +233,7 @@ export default function UploadDocumentPage() {
           <div>
             <h1 className="text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">Upload Document</h1>
             <p className="mt-2 text-base text-[#464555]">
-              Add a new study document to your library. Accepted formats: PDF, Word, PowerPoint, Excel, TXT, Markdown, CSV (max {MAX_SIZE_MB} MB).
+              Add study documents to your library. Accepted formats: PDF, Word, PowerPoint, Excel, TXT, Markdown, CSV (max {MAX_SIZE_MB} MB each).
             </p>
           </div>
         </div>
@@ -199,15 +244,14 @@ export default function UploadDocumentPage() {
             <p className="text-sm text-[#74798a]">Title and subject help you and your AI assistant find the document later.</p>
 
             <div className="mt-6 space-y-5">
-              <Field label="Title" id="title" required>
+              <Field label="Title" id="title" hint="Optional for multi-file uploads. File names are used when this is blank.">
                 <input
                   id="title"
                   type="text"
-                  required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="auth-input"
-                  placeholder="e.g. Neural Networks – Comprehensive Notes"
+                  placeholder="e.g. Neural Networks Comprehensive Notes"
                 />
               </Field>
 
@@ -300,8 +344,8 @@ export default function UploadDocumentPage() {
           </section>
 
           <section className="rounded-2xl border border-[#c7c4d8]/25 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-extrabold text-[#0b1c30]">File</h2>
-            <p className="text-sm text-[#74798a]">Drag & drop or click to browse.</p>
+            <h2 className="text-lg font-extrabold text-[#0b1c30]">Files</h2>
+            <p className="text-sm text-[#74798a]">Drag & drop or click to browse up to {MAX_FILES} files.</p>
 
             <label
               htmlFor="file"
@@ -335,8 +379,9 @@ export default function UploadDocumentPage() {
                 id="file"
                 type="file"
                 className="hidden"
+                multiple
                 accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(',')}
-                onChange={(e) => handleFile(e.target.files?.[0] || null)}
+                onChange={(e) => handleFiles(e.target.files)}
               />
             </label>
 
@@ -345,6 +390,17 @@ export default function UploadDocumentPage() {
                 <AlertCircle className="h-3.5 w-3.5" />
                 {fileError}
               </p>
+            )}
+
+            {files.length > 1 && (
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-[#eef0ff] px-3 py-2 text-xs font-bold text-[#464555]">
+                <span>{files.length} files selected. The first file is previewed below.</span>
+                {!uploading && (
+                  <button type="button" onClick={clearFiles} className="text-[#3525cd] hover:underline">
+                    Clear all
+                  </button>
+                )}
+              </div>
             )}
 
             {file && (
@@ -361,7 +417,7 @@ export default function UploadDocumentPage() {
                 {!uploading && (
                   <button
                     type="button"
-                    onClick={removeFile}
+                    onClick={() => removeFile(file.name)}
                     aria-label="Remove file"
                     className="grid h-9 w-9 place-items-center rounded-lg text-[#74798a] transition hover:bg-red-50 hover:text-red-600"
                   >
@@ -403,9 +459,9 @@ export default function UploadDocumentPage() {
                 {success}
               </div>
             )}
-            {uploadedDoc && (
+            {uploadedDocs.length === 1 && (
               <div className="mb-4">
-                <ExtractionStatusPanel doc={uploadedDoc} compact />
+                <ExtractionStatusPanel doc={uploadedDocs[0]} compact />
               </div>
             )}
 
@@ -429,7 +485,7 @@ export default function UploadDocumentPage() {
                 ) : (
                   <>
                     <CloudUpload className="h-4 w-4" />
-                    Upload Document
+                    Upload {files.length > 1 ? 'Documents' : 'Document'}
                   </>
                 )}
               </button>
