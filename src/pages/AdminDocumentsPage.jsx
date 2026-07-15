@@ -228,7 +228,6 @@ export default function AdminDocumentsPage() {
               <thead className="bg-[#f5f7ff] text-xs font-bold uppercase tracking-wide text-[#74798a]">
                 <tr>
                   <th className="px-6 py-3">Document</th>
-                  <th className="px-4 py-3">Created by</th>
                   <th className="px-4 py-3">Subject</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Size</th>
@@ -240,14 +239,14 @@ export default function AdminDocumentsPage() {
                 {loading ? (
                   Array.from({ length: 6 }).map((_, idx) => (
                     <tr key={idx} className="border-t border-[#c7c4d8]/15">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={6} className="px-6 py-4">
                         <div className="h-8 w-full animate-pulse rounded-lg bg-[#eef0ff]" />
                       </td>
                     </tr>
                   ))
                 ) : data.content.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-16 text-center">
+                    <td colSpan={6} className="px-6 py-16 text-center">
                       <FileText className="mx-auto h-10 w-10 text-[#74798a]" />
                       <p className="mt-3 font-extrabold text-[#0b1c30]">No documents found</p>
                       <p className="mt-1 text-sm text-[#74798a]">
@@ -269,10 +268,7 @@ export default function AdminDocumentsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
-                        <p className="font-semibold text-[#0b1c30]">{highlight(doc.userFullName, keyword)}</p>
-                        <p className="text-xs text-[#74798a]">{highlight(doc.userEmail, keyword)}</p>
-                      </td>
+
                       <td className="px-4 py-4">
                         {doc.subjectName ? (
                           <span className="rounded-md bg-[#dce9ff] px-2 py-1 text-xs font-bold text-[#3525cd]">

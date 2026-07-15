@@ -11,9 +11,7 @@ export function getApiErrorMessage(err, fallback = 'Có lỗi xảy ra.') {
   }
 
   if (err.response.status === 502) {
-    return (
-      'Backend chưa chạy (502). Chạy Spring Boot trên cổng 8081 (aistudyhub-be\\run-dev.ps1) trước khi đăng ký/đăng nhập.'
-    )
+    return err.response?.data?.message || 'AI Gateway / Proxy service returned 502 Bad Gateway. Check AI provider settings.'
   }
 
   if (err.response.status === 403) {

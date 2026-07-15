@@ -14,6 +14,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
+  if (user?.passwordResetRequired && location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace state={{ forcePasswordReset: true }} />
+  }
+
   const normalizedAllowedRoles = allowedRoles?.map(normalizeRole) || []
 
   if (normalizedAllowedRoles.length && !normalizedAllowedRoles.includes(normalizeRole(user?.role))) {

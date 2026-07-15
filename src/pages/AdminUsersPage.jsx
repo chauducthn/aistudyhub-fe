@@ -260,7 +260,6 @@ export default function AdminUsersPage() {
                     />
                   </th>
                   <th className="px-4 py-4">User</th>
-                  <th className="px-4 py-4">Phone</th>
                   <th className="px-4 py-4">Role</th>
                   <th className="px-4 py-4">Status</th>
                   <th className="px-4 py-4">Joined</th>
@@ -294,7 +293,6 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-5 text-sm font-semibold text-slate-600">{user.phone || '—'}</td>
                     <td className="px-4 py-5 text-sm font-bold">{user.role}</td>
                     <td className="px-4 py-5">
                       <StatusBadge status={user.status} />
@@ -316,7 +314,7 @@ export default function AdminUsersPage() {
                 ))}
                 {!loading && users.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-sm font-bold text-slate-500">
+                    <td colSpan="6" className="px-6 py-12 text-center text-sm font-bold text-slate-500">
                       No accounts match your search.
                     </td>
                   </tr>
@@ -453,7 +451,6 @@ function MenuItem({ icon: Icon, label, onClick, danger }) {
 
 function EditUserModal({ user, saving, onClose, onSave }) {
   const [fullName, setFullName] = useState(user.fullName || '')
-  const [phone, setPhone] = useState(user.phone || '')
   const [err, setErr] = useState('')
 
   const submit = (e) => {
@@ -462,7 +459,7 @@ function EditUserModal({ user, saving, onClose, onSave }) {
       setErr('Full name is required.')
       return
     }
-    onSave({ fullName: fullName.trim(), phone: phone.trim() })
+    onSave({ fullName: fullName.trim() })
   }
 
   return (
@@ -487,16 +484,6 @@ function EditUserModal({ user, saving, onClose, onSave }) {
           />
           {err && <p className="mt-1 text-xs font-semibold text-red-600">{err}</p>}
         </div>
-        <div>
-          <label className="text-sm font-bold text-[#0b1c30]">Phone</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            maxLength={32}
-            placeholder="Optional"
-            className="mt-1.5 h-11 w-full rounded-lg border border-slate-200 px-4 font-semibold outline-none focus:border-[#3b2be0]"
-          />
-        </div>
         <ModalActions saving={saving} submitLabel="Save Changes" onClose={onClose} />
       </form>
     </Modal>
@@ -504,37 +491,26 @@ function EditUserModal({ user, saving, onClose, onSave }) {
 }
 
 function ResetPasswordModal({ user, saving, onClose, onSave }) {
-  const [pw, setPw] = useState('')
-  const [err, setErr] = useState('')
-
   const submit = (e) => {
     e.preventDefault()
-    if (pw.trim().length < 8) {
-      setErr('Password must be at least 8 characters.')
-      return
-    }
-    onSave(pw.trim())
+    onSave()
   }
 
   return (
     <Modal onClose={onClose} title={`Reset password — ${user.fullName}`}>
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <div>
-          <label className="text-sm font-bold text-[#0b1c30]">New password</label>
-          <input
-            type="text"
-            value={pw}
-            onChange={(e) => { setPw(e.target.value); if (err) setErr('') }}
-            placeholder="Min. 8 characters"
-            className={`mt-1.5 h-11 w-full rounded-lg border px-4 font-semibold outline-none focus:border-[#3b2be0] ${err ? 'border-red-400' : 'border-slate-200'}`}
-            autoFocus
-          />
-          {err && <p className="mt-1 text-xs font-semibold text-red-600">{err}</p>}
-          <p className="mt-1.5 text-xs font-semibold text-slate-500">
-            The user will be signed out everywhere and must use this new password.
+      <form onSubmit={submit} className="space-y-5" noValidate>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-slate-600">
+            Are you sure you want to reset the password for <strong>{user.fullName}</strong>?
+          </p>
+          <p className="text-sm font-bold text-[#0b1c30]">
+            The password will be reset to default: <span className="bg-slate-100 px-2 py-1 rounded text-red-600 font-mono">123456</span>
+          </p>
+          <p className="text-xs font-semibold text-slate-500">
+            The user will be logged out of all active sessions and will be forced to change their password upon their first login.
           </p>
         </div>
-        <ModalActions saving={saving} submitLabel="Reset Password" onClose={onClose} />
+        <ModalActions saving={saving} submitLabel="Confirm Reset" onClose={onClose} />
       </form>
     </Modal>
   )

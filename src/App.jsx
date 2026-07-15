@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminDocumentsPage from './pages/AdminDocumentsPage'
 import AdminUsersPage from './pages/AdminUsersPage'
-import AdvancedSearchPage from './pages/AdvancedSearchPage'
 import ChatbotPage from './pages/ChatbotPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import EditDocumentPage from './pages/EditDocumentPage'
@@ -101,14 +100,6 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PublicDocumentDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/search"
-            element={
-              <ProtectedRoute>
-                <AdvancedSearchPage />
               </ProtectedRoute>
             }
           />
