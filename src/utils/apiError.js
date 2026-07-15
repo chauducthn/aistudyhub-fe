@@ -11,8 +11,7 @@ export function getApiErrorMessage(err, fallback = 'Có lỗi xảy ra.') {
   }
 
   if (err.response.status === 502) {
-    return err.response?.data?.message
-      || 'Backend hoặc AI service chưa phản hồi (502). Kiểm tra backend tại http://localhost:8081/api/health và cấu hình AI provider.'
+    return err.response?.data?.message || 'AI Gateway / Proxy service returned 502 Bad Gateway. Check AI provider settings.'
   }
 
   if (err.response.status === 403) {

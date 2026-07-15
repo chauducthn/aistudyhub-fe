@@ -451,7 +451,6 @@ function MenuItem({ icon: Icon, label, onClick, danger }) {
 
 function EditUserModal({ user, saving, onClose, onSave }) {
   const [fullName, setFullName] = useState(user.fullName || '')
-  const [phone, setPhone] = useState(user.phone || '')
   const [err, setErr] = useState('')
 
   const submit = (e) => {
@@ -460,7 +459,7 @@ function EditUserModal({ user, saving, onClose, onSave }) {
       setErr('Full name is required.')
       return
     }
-    onSave({ fullName: fullName.trim(), phone: phone.trim() })
+    onSave({ fullName: fullName.trim() })
   }
 
   return (
@@ -485,16 +484,6 @@ function EditUserModal({ user, saving, onClose, onSave }) {
           />
           {err && <p className="mt-1 text-xs font-semibold text-red-600">{err}</p>}
         </div>
-        <div>
-          <label className="text-sm font-bold text-[#0b1c30]">Phone</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            maxLength={32}
-            placeholder="Optional"
-            className="mt-1.5 h-11 w-full rounded-lg border border-slate-200 px-4 font-semibold outline-none focus:border-[#3b2be0]"
-          />
-        </div>
         <ModalActions saving={saving} submitLabel="Save Changes" onClose={onClose} />
       </form>
     </Modal>
@@ -502,54 +491,26 @@ function EditUserModal({ user, saving, onClose, onSave }) {
 }
 
 function ResetPasswordModal({ user, saving, onClose, onSave }) {
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [err, setErr] = useState('')
-
   const submit = (e) => {
     e.preventDefault()
-    if (!newPassword.trim()) {
-      setErr('New password is required.')
-      return
-    }
-    if (newPassword.length < 8) {
-      setErr('Password must be at least 8 characters.')
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setErr('Passwords do not match.')
-      return
-    }
-    onSave(newPassword)
+    onSave()
   }
 
   return (
     <Modal onClose={onClose} title={`Reset password — ${user.fullName}`}>
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <p className="text-sm font-semibold text-slate-600">
-          Set a new password for <strong>{user.fullName}</strong>. The user will be logged out of all active sessions.
-        </p>
-        <div>
-          <label className="text-sm font-bold text-[#0b1c30]">New password</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => { setNewPassword(e.target.value); if (err) setErr('') }}
-            className={`mt-1.5 h-11 w-full rounded-lg border px-4 font-semibold outline-none focus:border-[#3b2be0] ${err ? 'border-red-400' : 'border-slate-200'}`}
-            autoFocus
-          />
+      <form onSubmit={submit} className="space-y-5" noValidate>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-slate-600">
+            Are you sure you want to reset the password for <strong>{user.fullName}</strong>?
+          </p>
+          <p className="text-sm font-bold text-[#0b1c30]">
+            The password will be reset to default: <span className="bg-slate-100 px-2 py-1 rounded text-red-600 font-mono">123456</span>
+          </p>
+          <p className="text-xs font-semibold text-slate-500">
+            The user will be logged out of all active sessions and will be forced to change their password upon their first login.
+          </p>
         </div>
-        <div>
-          <label className="text-sm font-bold text-[#0b1c30]">Confirm password</label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => { setConfirmPassword(e.target.value); if (err) setErr('') }}
-            className={`mt-1.5 h-11 w-full rounded-lg border px-4 font-semibold outline-none focus:border-[#3b2be0] ${err ? 'border-red-400' : 'border-slate-200'}`}
-          />
-          {err && <p className="mt-1 text-xs font-semibold text-red-600">{err}</p>}
-        </div>
-        <ModalActions saving={saving} submitLabel="Reset Password" onClose={onClose} />
+        <ModalActions saving={saving} submitLabel="Confirm Reset" onClose={onClose} />
       </form>
     </Modal>
   )

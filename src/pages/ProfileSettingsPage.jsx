@@ -151,56 +151,65 @@ export default function ProfileSettingsPage() {
 
         <div className="mt-10 grid gap-8 xl:grid-cols-[1fr_1fr]">
           <article className="rounded-2xl bg-white p-8 shadow-sm">
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col sm:flex-row items-center gap-5 border-b border-slate-100 pb-6 mb-6">
               {displayedAvatar ? (
-                <img src={displayedAvatar} alt="" className="h-20 w-20 rounded-full object-cover" />
+                <img src={displayedAvatar} alt="" className="h-24 w-24 rounded-full object-cover ring-4 ring-[#3427d9]/10" />
               ) : (
-                <div className="grid h-20 w-20 place-items-center rounded-full bg-[#e8e3ff] text-2xl font-extrabold text-[#3427d9]">
+                <div className="grid h-24 w-24 place-items-center rounded-full bg-[#e8e3ff] text-3xl font-extrabold text-[#3427d9]">
                   {initials}
                 </div>
               )}
-              <div>
+              <div className="flex-1">
                 <h2 className="text-2xl font-extrabold">Personal Information</h2>
                 <p className="mt-1 font-semibold text-slate-500">{user?.email}</p>
+                
+                <form onSubmit={handleAvatarSubmit} className="mt-3 flex flex-wrap items-center gap-2.5">
+                  <label
+                    htmlFor="avatar"
+                    className="inline-flex h-9 items-center justify-center rounded-lg bg-[#e8e3ff] px-4 text-xs font-bold text-[#3427d9] cursor-pointer hover:bg-[#dcd5ff] transition"
+                  >
+                    Choose Image
+                  </label>
+                  <input
+                    id="avatar"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={(event) => setAvatarFile(event.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                  {avatarFile && (
+                    <button
+                      type="submit"
+                      disabled={savingAvatar}
+                      className="inline-flex h-9 items-center justify-center rounded-lg bg-[#3b2be0] px-4 text-xs font-bold text-white hover:bg-[#2d1fb0] transition disabled:opacity-60"
+                    >
+                      {savingAvatar ? 'Uploading...' : 'Save'}
+                    </button>
+                  )}
+                  {user?.avatarUrl && (
+                    <button
+                      type="button"
+                      disabled={deletingAvatar}
+                      onClick={handleAvatarDelete}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-red-200 px-4 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-60"
+                    >
+                      {deletingAvatar ? 'Removing...' : 'Remove'}
+                    </button>
+                  )}
+                </form>
+                {avatarFile && (
+                  <p className="mt-1.5 text-xs font-semibold text-slate-500">Selected: {avatarFile.name}</p>
+                )}
+                {(avatarError || avatarMessage) && (
+                  <div className="mt-2">
+                    {avatarError && <p className="text-xs font-bold text-red-600">{avatarError}</p>}
+                    {avatarMessage && <p className="text-xs font-bold text-green-600">{avatarMessage}</p>}
+                  </div>
+                )}
               </div>
             </div>
 
-            <form onSubmit={handleAvatarSubmit} className="mt-8 border-b border-slate-100 pb-8">
-              {avatarError && <Alert tone="error">{avatarError}</Alert>}
-              {avatarMessage && <Alert>{avatarMessage}</Alert>}
-
-              <Field label="Avatar Image" htmlFor="avatar">
-                <input
-                  id="avatar"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={(event) => setAvatarFile(event.target.files?.[0] || null)}
-                  className="block w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#4f5668] file:mr-4 file:rounded-md file:border-0 file:bg-[#e8e3ff] file:px-4 file:py-2 file:font-bold file:text-[#3427d9]"
-                />
-              </Field>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={savingAvatar || !avatarFile}
-                  className="h-12 rounded-lg bg-[#3b2be0] px-7 font-bold text-white disabled:opacity-60"
-                >
-                  {savingAvatar ? 'Uploading...' : 'Upload Avatar'}
-                </button>
-                {user?.avatarUrl && (
-                  <button
-                    type="button"
-                    disabled={deletingAvatar}
-                    onClick={handleAvatarDelete}
-                    className="h-12 rounded-lg border border-red-200 px-7 font-bold text-red-600 disabled:opacity-60"
-                  >
-                    {deletingAvatar ? 'Removing...' : 'Remove Avatar'}
-                  </button>
-                )}
-              </div>
-            </form>
-
-            <form onSubmit={handleProfileSubmit} className="mt-8 space-y-6">
+            <form onSubmit={handleProfileSubmit} className="space-y-6">
               {profileError && <Alert tone="error">{profileError}</Alert>}
               {profileMessage && <Alert>{profileMessage}</Alert>}
 

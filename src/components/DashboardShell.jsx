@@ -20,7 +20,6 @@ import { useAuth } from '../context/useAuth'
 const userNav = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'My Documents', to: '/documents', icon: Files },
-  { label: 'Advanced Search', to: '/search', icon: FileSearch },
   { label: 'Public Documents', to: '/public-documents', icon: CloudUpload },
   { label: 'Upload', to: '/upload', icon: Upload },
   { label: 'Subjects', to: '/subjects', icon: FolderOpen },

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import AdvancedSearchPage from './AdvancedSearchPage'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +11,7 @@ import {
   Pencil,
   Plus,
   Search,
+  SlidersHorizontal,
   Trash2,
   X,
 } from 'lucide-react'
@@ -22,6 +22,7 @@ import {
   deleteDocument,
   downloadDocument,
   listMyDocuments,
+  listPublicDocuments,
   listSubjects,
   toggleDocumentVisibility,
   updateDocument,
@@ -62,11 +63,13 @@ const fileTypeStyle = {
 export default function MyDocumentsPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || 'list'
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [subjectId, setSubjectId] = useState('')
   const [visibility, setVisibility] = useState('ALL')
+  const [scope, setScope] = useState('mine')
+  const [fileType, setFileType] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [page, setPage] = useState(0)
   const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 })
   const [subjects, setSubjects] = useState([])
@@ -104,10 +107,24 @@ export default function MyDocumentsPage() {
       setLoading(true)
       setError('')
       try {
-        const res = await listMyDocuments({ search, subjectId, visibility, page, size: PAGE_SIZE })
+        let res
+        if (scope === 'public') {
+          res = await listPublicDocuments({ search, page, size: PAGE_SIZE })
+        } else {
+          res = await listMyDocuments({ search, subjectId, visibility, page, size: PAGE_SIZE })
+        }
         if (ignore) return
         if (!res.success) throw new Error(res.message || 'Could not load documents.')
-        setData(res.data)
+        
+        let content = res.data.content || []
+        if (fileType) {
+          content = content.filter((d) => (d.fileType || '').toLowerCase() === fileType)
+        }
+        
+        setData({
+          ...res.data,
+          content,
+        })
       } catch (err) {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load documents.'))
       } finally {
@@ -117,7 +134,7 @@ export default function MyDocumentsPage() {
     return () => {
       ignore = true
     }
-  }, [search, subjectId, visibility, page])
+  }, [search, subjectId, visibility, page, scope, fileType])
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
@@ -130,12 +147,28 @@ export default function MyDocumentsPage() {
     setSearch('')
     setSubjectId('')
     setVisibility('ALL')
+    setScope('mine')
+    setFileType('')
     setPage(0)
   }
 
   const refresh = async () => {
-    const res = await listMyDocuments({ search, subjectId, visibility, page, size: PAGE_SIZE })
-    if (res.success) setData(res.data)
+    let res
+    if (scope === 'public') {
+      res = await listPublicDocuments({ search, page, size: PAGE_SIZE })
+    } else {
+      res = await listMyDocuments({ search, subjectId, visibility, page, size: PAGE_SIZE })
+    }
+    if (res.success) {
+      let content = res.data.content || []
+      if (fileType) {
+        content = content.filter((d) => (d.fileType || '').toLowerCase() === fileType)
+      }
+      setData({
+        ...res.data,
+        content,
+      })
+    }
   }
 
   const handleToggleVisibility = async (doc) => {
@@ -209,7 +242,7 @@ export default function MyDocumentsPage() {
     }
   }
 
-  const filtersActive = !!search || !!subjectId || visibility !== 'ALL'
+  const filtersActive = !!search || !!subjectId || visibility !== 'ALL' || !!fileType || scope !== 'mine'
 
   return (
     <DashboardShell>
@@ -218,113 +251,146 @@ export default function MyDocumentsPage() {
           <div>
             <h1 className="text-3xl font-extrabold text-[#0b1c30] sm:text-4xl">My Documents</h1>
             <p className="mt-2 text-base text-[#464555]">
-              {tab === 'search'
-                ? 'Full-text search across titles, file names and descriptions.'
-                : (loading ? 'Loading...' : `${data.totalElements} documents in your library.`)}
+              {loading ? 'Loading...' : `${data.totalElements} documents in your library.`}
             </p>
           </div>
-          {tab !== 'search' && (
-            <Link
-              to="/upload"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0]"
-            >
-              <Plus className="h-4 w-4" />
-              Upload Document
-            </Link>
-          )}
+          <Link
+            to="/upload"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-6 text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0]"
+          >
+            <Plus className="h-4 w-4" />
+            Upload Document
+          </Link>
         </div>
 
-        {/* Tab Selection */}
-        <div className="border-b border-[#c7c4d8]/20 mb-6 flex gap-6">
-          <button
-            type="button"
-            onClick={() => setSearchParams({ tab: 'list' })}
-            className={`pb-3 text-sm font-bold border-b-2 transition ${
-              tab === 'list'
-                ? 'border-[#3525cd] text-[#3525cd]'
-                : 'border-transparent text-[#74798a] hover:text-[#0b1c30]'
-            }`}
-          >
-            Document List
-          </button>
-          <button
-            type="button"
-            onClick={() => setSearchParams({ tab: 'search' })}
-            className={`pb-3 text-sm font-bold border-b-2 transition ${
-              tab === 'search'
-                ? 'border-[#3525cd] text-[#3525cd]'
-                : 'border-transparent text-[#74798a] hover:text-[#0b1c30]'
-            }`}
-          >
-            Advanced Search
-          </button>
-        </div>
+        <section className="mt-6">
+          <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4 bg-white p-5 rounded-2xl border border-[#c7c4d8]/25 shadow-sm">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#74798a]" />
+                <input
+                  type="search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search title, description, or file name..."
+                  className="auth-input !pl-10 w-full"
+                />
+              </div>
 
-        {tab === 'search' ? (
-          <AdvancedSearchPage isEmbedded={true} />
-        ) : (
-          <>
+              {scope === 'mine' ? (
+                <select
+                  value={subjectId}
+                  onChange={(e) => {
+                    setSubjectId(e.target.value)
+                    setPage(0)
+                  }}
+                  className="auth-input w-full"
+                >
+                  <option value="">All subjects</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="hidden lg:block"></div>
+              )}
 
-        <section className="mt-6 rounded-2xl border border-[#c7c4d8]/25 bg-white p-4 shadow-sm">
-          <form onSubmit={handleSearchSubmit} className="grid gap-3 lg:grid-cols-[1.6fr_1fr_1fr_auto]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#74798a]" />
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search title, description, or file name..."
-                className="auth-input !pl-10"
-              />
-            </div>
-            <select
-              value={subjectId}
-              onChange={(e) => {
-                setSubjectId(e.target.value)
-                setPage(0)
-              }}
-              className="auth-input"
-            >
-              <option value="">All subjects</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={visibility}
-              onChange={(e) => {
-                setVisibility(e.target.value)
-                setPage(0)
-              }}
-              className="auth-input"
-            >
-              {VISIBILITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-[#3525cd] px-5 text-sm font-bold text-white transition hover:bg-[#2d1fb0]"
-              >
-                Search
-              </button>
-              {filtersActive && (
+              {scope === 'mine' ? (
+                <select
+                  value={visibility}
+                  onChange={(e) => {
+                    setVisibility(e.target.value)
+                    setPage(0)
+                  }}
+                  className="auth-input w-full"
+                >
+                  {VISIBILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="hidden lg:block"></div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#3525cd] px-5 text-sm font-bold text-white transition hover:bg-[#2d1fb0]"
+                >
+                  Search
+                </button>
                 <button
                   type="button"
-                  onClick={handleResetFilters}
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[#c7c4d8]/40 bg-white px-3 text-sm font-bold text-[#464555] transition hover:bg-[#eff4ff]"
-                  aria-label="Reset filters"
-                  title="Reset filters"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className={`inline-flex h-12 items-center justify-center rounded-xl border px-3 text-sm font-bold transition ${
+                    showAdvanced || scope !== 'mine' || fileType !== ''
+                      ? 'border-[#3525cd] bg-[#3525cd]/5 text-[#3525cd]'
+                      : 'border-[#c7c4d8]/40 bg-white text-[#464555] hover:bg-[#eff4ff]'
+                  }`}
+                  title="Advanced Filters"
                 >
-                  <X className="h-4 w-4" />
+                  <SlidersHorizontal className="h-4 w-4" />
                 </button>
-              )}
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="inline-flex h-12 items-center justify-center rounded-xl border border-[#c7c4d8]/40 bg-white px-3 text-sm font-bold text-[#464555] transition hover:bg-[#eff4ff]"
+                    aria-label="Reset filters"
+                    title="Reset filters"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {(showAdvanced || scope !== 'mine' || fileType !== '') && (
+              <div className="pt-4 border-t border-slate-100 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#74798a] mb-1.5">Scope</label>
+                  <select
+                    value={scope}
+                    onChange={(e) => {
+                      setScope(e.target.value)
+                      setPage(0)
+                      if (e.target.value === 'public') {
+                        setSubjectId('')
+                        setVisibility('ALL')
+                      }
+                    }}
+                    className="auth-input w-full"
+                  >
+                    <option value="mine">My Documents</option>
+                    <option value="public">Public Library</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#74798a] mb-1.5">File Type</label>
+                  <select
+                    value={fileType}
+                    onChange={(e) => {
+                      setFileType(e.target.value)
+                      setPage(0)
+                    }}
+                    className="auth-input w-full"
+                  >
+                    <option value="">All file types</option>
+                    <option value="pdf">PDF</option>
+                    <option value="docx">Word (DOCX)</option>
+                    <option value="pptx">PowerPoint (PPTX)</option>
+                    <option value="txt">Text (TXT)</option>
+                    <option value="md">Markdown (MD)</option>
+                    <option value="xlsx">Excel (XLSX)</option>
+                    <option value="csv">CSV</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </form>
         </section>
 
@@ -445,7 +511,7 @@ export default function MyDocumentsPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <ActionIconButton
                             label="Preview"
-                            onClick={() => navigate(`/documents/${doc.id}`)}
+                            onClick={() => navigate(scope === 'public' ? `/public-documents/${doc.id}` : `/documents/${doc.id}`)}
                             disabled={busyId === doc.id}
                           >
                             <FileText className="h-4 w-4" />
@@ -457,37 +523,41 @@ export default function MyDocumentsPage() {
                           >
                             <Download className="h-4 w-4" />
                           </ActionIconButton>
-                          <ActionIconButton
-                            label="Edit"
-                            onClick={() => setEditing(doc)}
-                            disabled={busyId === doc.id}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </ActionIconButton>
-                          <ActionIconButton
-                            label={doc.status === 'PUBLIC' ? 'Make private' : 'Make public'}
-                            onClick={() => handleToggleVisibility(doc)}
-                            disabled={busyId === doc.id}
-                            tone={doc.status === 'PUBLIC' ? 'active' : 'default'}
-                          >
-                            {doc.status === 'PUBLIC' ? (
-                              <Eye className="h-4 w-4" />
-                            ) : (
-                              <EyeOff className="h-4 w-4" />
-                            )}
-                          </ActionIconButton>
-                          <ActionIconButton
-                            label="Delete"
-                            onClick={() => setDeletingId(doc.id)}
-                            disabled={busyId === doc.id}
-                            tone="danger"
-                          >
-                            {busyId === doc.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </ActionIconButton>
+                          {scope !== 'public' && (
+                            <>
+                              <ActionIconButton
+                                label="Edit"
+                                onClick={() => setEditing(doc)}
+                                disabled={busyId === doc.id}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </ActionIconButton>
+                              <ActionIconButton
+                                label={doc.status === 'PUBLIC' ? 'Make private' : 'Make public'}
+                                onClick={() => handleToggleVisibility(doc)}
+                                disabled={busyId === doc.id}
+                                tone={doc.status === 'PUBLIC' ? 'active' : 'default'}
+                              >
+                                {doc.status === 'PUBLIC' ? (
+                                  <Eye className="h-4 w-4" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4" />
+                                )}
+                              </ActionIconButton>
+                              <ActionIconButton
+                                label="Delete"
+                                onClick={() => setDeletingId(doc.id)}
+                                disabled={busyId === doc.id}
+                                tone="danger"
+                              >
+                                {busyId === doc.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </ActionIconButton>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -544,8 +614,6 @@ export default function MyDocumentsPage() {
             onCancel={() => setDeletingId(null)}
             onConfirm={handleConfirmDelete}
           />
-        )}
-          </>
         )}
       </div>
     </DashboardShell>
