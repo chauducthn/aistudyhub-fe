@@ -615,8 +615,6 @@ export default function MyDocumentsPage() {
             onConfirm={handleConfirmDelete}
           />
         )}
-          </>
-        )}
       </div>
     </DashboardShell>
   )
