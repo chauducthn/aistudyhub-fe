@@ -1,5 +1,8 @@
 export function getApiErrorMessage(err, fallback = 'Có lỗi xảy ra.') {
   if (!err.response) {
+    if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' || err.message?.toLowerCase().includes('timeout')) {
+      return 'API xử lý quá thời gian chờ. Vui lòng thử lại với câu hỏi ngắn hơn hoặc kiểm tra AI provider.'
+    }
     if (err.message?.includes('502') || err.code === 'ERR_BAD_RESPONSE') {
       return (
         'Backend chưa chạy hoặc không phản hồi (lỗi 502). ' +

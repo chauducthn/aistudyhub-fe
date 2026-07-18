@@ -3,6 +3,7 @@ import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
 import { listMyDocuments, listPublicDocuments } from './documentsApi'
 import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
 
+const CHAT_RESPONSE_TIMEOUT_MS = 90_000
 
 export function mapChatMessageFromApi(raw) {
   if (!raw) return raw
@@ -24,7 +25,9 @@ export async function sendChatMessage({ message, documentId, sessionId } = {}) {
   if (documentId) body.documentId = Number(documentId)
   if (sessionId) body.sessionId = Number(sessionId)
 
-  const { data } = await apiClient.post('/chatbot/messages', body)
+  const { data } = await apiClient.post('/chatbot/messages', body, {
+    timeout: CHAT_RESPONSE_TIMEOUT_MS,
+  })
   invalidateCache('chatbot:history')
   const res = unwrapApiResponse(data)
   return {
