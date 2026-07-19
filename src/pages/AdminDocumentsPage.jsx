@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Download, FileText, Loader2, Search, Trash2, X } from 'lucide-react'
+import { FileText, Loader2, Search, Trash2, X } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import {
   deleteAdminDocument,
-  downloadAdminDocument,
   listAdminDocuments,
-  updateAdminDocumentStatus,
 } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatDate } from '../utils/formatters'
@@ -98,36 +96,7 @@ export default function AdminDocumentsPage() {
     setPage(0)
   }
 
-  const handleStatusChange = async (doc, nextStatus) => {
-    setBusyId(doc.id)
-    setError('')
-    setMessage('')
-    try {
-      const res = await updateAdminDocumentStatus(doc.id, nextStatus)
-      if (!res.success) throw new Error(res.message)
-      setData((cur) => ({
-        ...cur,
-        content: cur.content.map((d) => (d.id === doc.id ? { ...d, status: nextStatus } : d)),
-      }))
-      setMessage(`"${doc.title}" is now ${nextStatus}.`)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not update status.'))
-    } finally {
-      setBusyId(null)
-    }
-  }
 
-  const handleDownload = async (doc) => {
-    setBusyId(doc.id)
-    setError('')
-    try {
-      await downloadAdminDocument(doc)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not download document.'))
-    } finally {
-      setBusyId(null)
-    }
-  }
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
@@ -279,41 +248,14 @@ export default function AdminDocumentsPage() {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        {doc.status === 'DELETED' ? (
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${STATUS_TONE.DELETED}`}>
-                            DELETED
-                          </span>
-                        ) : (
-                          <select
-                            value={doc.status}
-                            disabled={busyId === doc.id}
-                            onChange={(e) => handleStatusChange(doc, e.target.value)}
-                            className={`rounded-md border-0 px-2 py-1 text-xs font-extrabold uppercase outline-none ring-1 ring-inset ring-[#c7c4d8]/40 ${
-                              STATUS_TONE[doc.status] || 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {ADMIN_STATUSES.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </select>
-                        )}
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${STATUS_TONE[doc.status] || 'bg-slate-100 text-slate-600'}`}>
+                          {doc.status}
+                        </span>
                       </td>
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatBytes(doc.fileSize)}</td>
                       <td className="px-4 py-4 text-xs font-semibold text-[#464555]">{formatDate(doc.uploadedAt)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(doc)}
-                            disabled={busyId === doc.id}
-                            aria-label="Download"
-                            title="Download"
-                            className="grid h-9 w-9 place-items-center rounded-lg text-[#464555] transition hover:bg-[#eff4ff] hover:text-[#3525cd] disabled:opacity-50"
-                          >
-                            {busyId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                          </button>
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(doc)}

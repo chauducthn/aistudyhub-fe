@@ -1,6 +1,8 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
 import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
+import { getAdminDocument } from './adminApi'
+import { buildPreviewFromDoc } from './documentsApi'
 
 export const REPORT_REASONS = [
   { value: 'COPYRIGHT', label: 'Copyright violation' },
@@ -84,4 +86,13 @@ export async function resolveAdminReport(reportId, payload) {
     ...body,
     data: body.data ? mapReportFromApi(body.data) : null,
   }
+}
+
+/** Admin preview for reported document */
+export async function getReportedDocumentPreview(documentId) {
+  const docRes = await getAdminDocument(documentId)
+  if (!docRes.success || !docRes.data) {
+    return { success: false, data: null, message: 'Document not found.' }
+  }
+  return buildPreviewFromDoc(docRes.data)
 }

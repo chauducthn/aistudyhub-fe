@@ -200,7 +200,7 @@ function fileSourceUrl(doc) {
   return doc.downloadUrl || resolveMediaUrl(doc.fileUrl)
 }
 
-async function buildPreviewFromDoc(doc) {
+export async function buildPreviewFromDoc(doc) {
   const docId = normalizeDocId(doc.id)
   const ext = extOf(doc)
   const src = fileSourceUrl(doc)

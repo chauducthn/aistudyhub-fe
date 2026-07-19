@@ -47,6 +47,16 @@ export async function deleteAdminDocument(documentId) {
   return data
 }
 
+/** GET /api/admin/documents/{id} */
+export async function getAdminDocument(documentId) {
+  const { data } = await apiClient.get(`/admin/documents/${documentId}`)
+  const body = unwrapApiResponse(data)
+  return {
+    ...body,
+    data: body.data ? mapDocumentFromApi(body.data) : null,
+  }
+}
+
 /** GET /api/admin/documents/{id}/download — fetch the file (follows 302 to S3) */
 export async function downloadAdminDocument(doc) {
   const response = await apiClient.get(`/admin/documents/${doc.id}/download`, {
