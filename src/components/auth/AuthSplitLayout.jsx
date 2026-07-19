@@ -68,7 +68,7 @@ export default function AuthSplitLayout({
 
         {heroImage && (
           <div className="relative z-10 mt-auto flex min-h-0 flex-col pt-4">
-            <div className="flex min-h-0 flex-1 items-end justify-center">
+            <div className="auth-hero-image-box flex min-h-0 flex-1 items-end justify-center">
               {isRegister ? (
                 <div className="w-full max-w-[420px] rounded-2xl border border-white/20 bg-white/10 p-3 shadow-2xl">
                   <div className="overflow-hidden rounded-xl">

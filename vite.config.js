@@ -19,12 +19,12 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true,
       },
-      '/uploads': { target: 'http://localhost:8081', changeOrigin: true },
-      '/swagger-ui': { target: 'http://localhost:8081', changeOrigin: true },
-      '/v3': { target: 'http://localhost:8081', changeOrigin: true },
+      '/uploads': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/swagger-ui': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/v3': { target: 'http://127.0.0.1:8081', changeOrigin: true },
     },
   },
   test: {
