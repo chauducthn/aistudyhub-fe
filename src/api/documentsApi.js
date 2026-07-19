@@ -41,6 +41,7 @@ export function mapDocumentFromApi(raw) {
     extractionStatus: raw.extractionStatus || 'PENDING',
     extractionError: raw.extractionError || null,
     extractedAt: raw.extractedAt || null,
+    extractedText: raw.extractedText || null,
   }
 }
 
@@ -206,6 +207,18 @@ export async function buildPreviewFromDoc(doc) {
   const src = fileSourceUrl(doc)
   const fileName = doc.fileName || doc.originalFilename
   const isPublicUrl = /^https?:\/\//i.test(src || '')
+
+  if (ext !== 'pdf' && !IMAGE_PREVIEW_EXTENSIONS.has(ext) && doc.extractedText) {
+    return {
+      success: true,
+      message: null,
+      data: {
+        type: 'text',
+        textContent: doc.extractedText,
+        fileName
+      }
+    }
+  }
 
 
   if (OFFICE_PREVIEW_EXTENSIONS.has(ext)) {

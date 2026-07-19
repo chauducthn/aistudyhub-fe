@@ -391,12 +391,6 @@ export default function AdminReportsPage() {
                         disabled={busy}
                       />
                       <ModerationButton
-                        icon={Lock}
-                        label="Lock document"
-                        onClick={() => handleResolve('LOCKED')}
-                        disabled={busy}
-                      />
-                      <ModerationButton
                         icon={Trash2}
                         label="Remove document"
                         tone="danger"

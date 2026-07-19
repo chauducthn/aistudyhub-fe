@@ -136,26 +136,32 @@ export default function UploadDocumentPage() {
     setSuccess('')
     setUploadedDocs([])
 
-    const selected = Array.from(nextFiles || [])
-    if (selected.length === 0) {
-      setFiles([])
-      setFileError('')
+    const incoming = Array.from(nextFiles || [])
+    if (incoming.length === 0) {
       return
     }
 
-    if (selected.length > MAX_FILES) {
-      setFiles([])
-      setFileError(`You can upload up to ${MAX_FILES} files at once.`)
+    const newFiles = incoming.filter(
+      (newFile) => !files.some((oldFile) => oldFile.name === newFile.name && oldFile.size === newFile.size)
+    )
+
+    if (newFiles.length === 0) {
       return
     }
 
-    const validation = selected.map(validateFile).find(Boolean)
+    const combined = [...files, ...newFiles]
+
+    if (combined.length > MAX_FILES) {
+      setFileError(`You can upload up to ${MAX_FILES} files in total.`)
+      return
+    }
+
+    const validation = newFiles.map(validateFile).find(Boolean)
     if (validation) {
-      setFiles([])
       setFileError(validation)
       return
     }
-    setFiles(selected)
+    setFiles(combined)
     setFileError('')
   }
 
