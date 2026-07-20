@@ -9,6 +9,7 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
 const DOCUMENT_CACHE_TTL_MS = 20_000
 const DOCUMENT_LIST_CACHE_TTL_MS = 15_000
+const DOCUMENT_UPLOAD_TIMEOUT_MS = 120_000
 
 export function mapDocumentFromApi(raw) {
   if (!raw) return raw
@@ -41,6 +42,7 @@ export function mapDocumentFromApi(raw) {
     extractionStatus: raw.extractionStatus || 'PENDING',
     extractionError: raw.extractionError || null,
     extractedAt: raw.extractedAt || null,
+    extractedText: raw.extractedText || null,
   }
 }
 
@@ -199,28 +201,46 @@ function extOf(doc) {
 function fileSourceUrl(doc) {
   return doc.downloadUrl || resolveMediaUrl(doc.fileUrl)
 }
-
-async function buildPreviewFromDoc(doc) {
+export async function buildPreviewFromDoc(doc) {
   const docId = normalizeDocId(doc.id)
   const ext = extOf(doc)
   const src = fileSourceUrl(doc)
   const fileName = doc.fileName || doc.originalFilename
   const isPublicUrl = /^https?:\/\//i.test(src || '')
 
-
-  if (OFFICE_PREVIEW_EXTENSIONS.has(ext)) {
-    if (isPublicUrl) {
-      const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`
-      return { success: true, message: null, data: { type: 'office', previewUrl: officeUrl, sourceUrl: src, fileName } }
-    }
-    return {
-      success: false,
-      data: { type: 'download', fileName },
-      message: 'Inline preview for Office files needs a public file URL. Download to view.',
+  if (ext === 'docx' || ext === 'xlsx' || ext === 'xls') {
+    try {
+      const response = await apiClient.get(`/documents/${docId}/download`, { responseType: 'blob' })
+      const blob = response.data
+      return {
+        success: true,
+        message: null,
+        data: {
+          type: ext === 'docx' ? 'docx' : 'xlsx',
+          previewUrl: window.URL.createObjectURL(blob),
+          blob,
+          fallbackText: doc.extractedText || null,
+          fileName
+        }
+      }
+    } catch (err) {
+      console.error('Failed to download office file for preview:', err)
     }
   }
 
   if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext) && !IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
+    // If it has extracted text, we can show it as a fallback
+    if (doc.extractedText) {
+      return {
+        success: true,
+        message: null,
+        data: {
+          type: 'text',
+          textContent: doc.extractedText,
+          fileName
+        }
+      }
+    }
     return {
       success: false,
       data: { type: 'download', fileName },
@@ -309,6 +329,7 @@ export async function uploadDocuments(payload, onProgress) {
 
   const { data } = await apiClient.post('/documents/batch', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: DOCUMENT_UPLOAD_TIMEOUT_MS,
     onUploadProgress: (event) => {
       if (!onProgress) return
 
@@ -390,30 +411,6 @@ export async function deleteDocument(id) {
   return {
     ...body,
     data: body.data || { id: String(id) },
-  }
-}
-
-export async function runPlagiarismCheck(id) {
-  if (USE_MOCK) {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    return {
-      success: true,
-      message: 'Plagiarism check completed',
-      data: {
-        plagiarismReport: '### Plagiarism Report\n\n- **Score**: 12%\n- **Sources**:\n  - [Wikipedia: Neural Networks](https://en.wikipedia.org/neural_networks) (10% similarity)\n\nOriginal content matched with public online knowledge.',
-        plagiarismCheckedAt: new Date().toISOString(),
-      },
-    }
-  }
-
-  const docId = normalizeDocId(id)
-  const { data } = await apiClient.post(`/documents/${docId}/plagiarism-check`)
-  const body = unwrapApiResponse(data)
-  invalidateDocumentCaches(docId)
-
-  return {
-    ...body,
-    data: body.data ? mapDocumentFromApi(body.data) : null,
   }
 }
 

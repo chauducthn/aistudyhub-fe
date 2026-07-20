@@ -8,6 +8,7 @@ import {
   EyeOff,
   FileText,
   Loader2,
+  Lock,
   Pencil,
   Plus,
   Search,
@@ -100,6 +101,11 @@ export default function MyDocumentsPage() {
       ignore = true
     }
   }, [])
+
+  useEffect(() => {
+    const subId = searchParams.get('subjectId') || ''
+    setSubjectId(subId)
+  }, [searchParams])
 
   useEffect(() => {
     let ignore = false
@@ -532,18 +538,28 @@ export default function MyDocumentsPage() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </ActionIconButton>
-                              <ActionIconButton
-                                label={doc.status === 'PUBLIC' ? 'Make private' : 'Make public'}
-                                onClick={() => handleToggleVisibility(doc)}
-                                disabled={busyId === doc.id}
-                                tone={doc.status === 'PUBLIC' ? 'active' : 'default'}
-                              >
-                                {doc.status === 'PUBLIC' ? (
-                                  <Eye className="h-4 w-4" />
-                                ) : (
-                                  <EyeOff className="h-4 w-4" />
-                                )}
-                              </ActionIconButton>
+                              {doc.status === 'HIDDEN' || doc.status === 'LOCKED' ? (
+                                <ActionIconButton
+                                  label="Moderated by Admin (Hidden)"
+                                  disabled
+                                  tone="disabled"
+                                >
+                                  <Lock className="h-4 w-4 text-red-500" />
+                                </ActionIconButton>
+                              ) : (
+                                <ActionIconButton
+                                  label={doc.status === 'PUBLIC' ? 'Make private' : 'Make public'}
+                                  onClick={() => handleToggleVisibility(doc)}
+                                  disabled={busyId === doc.id}
+                                  tone={doc.status === 'PUBLIC' ? 'active' : 'default'}
+                                >
+                                  {doc.status === 'PUBLIC' ? (
+                                    <Eye className="h-4 w-4" />
+                                  ) : (
+                                    <EyeOff className="h-4 w-4" />
+                                  )}
+                                </ActionIconButton>
+                              )}
                               <ActionIconButton
                                 label="Delete"
                                 onClick={() => setDeletingId(doc.id)}

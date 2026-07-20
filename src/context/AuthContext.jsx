@@ -166,6 +166,8 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
+    } catch (err) {
+      console.warn('Backend logout call failed:', err)
     } finally {
       clearSession()
     }

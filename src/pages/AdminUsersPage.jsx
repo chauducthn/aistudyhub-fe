@@ -4,7 +4,6 @@ import {
   Lock,
   MoreVertical,
   Pencil,
-  KeyRound,
   Trash2,
   Unlock,
   X,
@@ -14,7 +13,6 @@ import {
   getAdminUsers,
   updateAdminUserStatus,
   updateUser,
-  resetUserPassword,
   deleteUser,
 } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -34,7 +32,6 @@ export default function AdminUsersPage() {
   const [message, setMessage] = useState('')
   const [selected, setSelected] = useState([])
   const [editTarget, setEditTarget] = useState(null)
-  const [resetTarget, setResetTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [bulkAction, setBulkAction] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -112,21 +109,7 @@ export default function AdminUsersPage() {
     }
   }
 
-  const handleResetSave = async (newPassword) => {
-    if (!resetTarget) return
-    setSavingId(resetTarget.id)
-    setError('')
-    try {
-      const response = await resetUserPassword(resetTarget.id, newPassword)
-      if (!response.success) throw new Error(response.message)
-      setMessage(`Password reset for ${resetTarget.fullName}.`)
-      setResetTarget(null)
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not reset password.'))
-    } finally {
-      setSavingId(null)
-    }
-  }
+
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
@@ -306,7 +289,6 @@ export default function AdminUsersPage() {
                         onToggleStatus={() =>
                           handleStatusChange(user, user.status === 'LOCKED' ? 'ACTIVE' : 'LOCKED')
                         }
-                        onReset={() => setResetTarget(user)}
                         onDelete={() => setDeleteTarget(user)}
                       />
                     </td>
@@ -355,14 +337,6 @@ export default function AdminUsersPage() {
           onSave={handleEditSave}
         />
       )}
-      {resetTarget && (
-        <ResetPasswordModal
-          user={resetTarget}
-          saving={savingId === resetTarget.id}
-          onClose={() => setResetTarget(null)}
-          onSave={handleResetSave}
-        />
-      )}
       {deleteTarget && (
         <ConfirmDialog
           title={`Delete "${deleteTarget.fullName}"?`}
@@ -392,7 +366,7 @@ export default function AdminUsersPage() {
   )
 }
 
-function RowMenu({ user, busy, onEdit, onToggleStatus, onReset, onDelete }) {
+function RowMenu({ user, busy, onEdit, onToggleStatus, onDelete }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -426,7 +400,6 @@ function RowMenu({ user, busy, onEdit, onToggleStatus, onReset, onDelete }) {
             label={isLocked ? 'Activate' : 'Deactivate'}
             onClick={() => { setOpen(false); onToggleStatus() }}
           />
-          <MenuItem icon={KeyRound} label="Reset password" onClick={() => { setOpen(false); onReset() }} />
           <MenuItem icon={Trash2} label="Delete" danger onClick={() => { setOpen(false); onDelete() }} />
         </div>
       )}
@@ -485,32 +458,6 @@ function EditUserModal({ user, saving, onClose, onSave }) {
           {err && <p className="mt-1 text-xs font-semibold text-red-600">{err}</p>}
         </div>
         <ModalActions saving={saving} submitLabel="Save Changes" onClose={onClose} />
-      </form>
-    </Modal>
-  )
-}
-
-function ResetPasswordModal({ user, saving, onClose, onSave }) {
-  const submit = (e) => {
-    e.preventDefault()
-    onSave()
-  }
-
-  return (
-    <Modal onClose={onClose} title={`Reset password — ${user.fullName}`}>
-      <form onSubmit={submit} className="space-y-5" noValidate>
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-slate-600">
-            Are you sure you want to reset the password for <strong>{user.fullName}</strong>?
-          </p>
-          <p className="text-sm font-bold text-[#0b1c30]">
-            The password will be reset to default: <span className="bg-slate-100 px-2 py-1 rounded text-red-600 font-mono">123456</span>
-          </p>
-          <p className="text-xs font-semibold text-slate-500">
-            The user will be logged out of all active sessions and will be forced to change their password upon their first login.
-          </p>
-        </div>
-        <ModalActions saving={saving} submitLabel="Confirm Reset" onClose={onClose} />
       </form>
     </Modal>
   )

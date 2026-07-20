@@ -30,7 +30,7 @@ Checklist để test chatbot trên **Swagger** và **Frontend** sau khi BE + FE 
 { "message": "Explain binary search in 3 bullets" }
 ```
 
-**Kỳ vọng:** `200`, `data.response` có nội dung, `data.model` = `LOCAL_STUDY_ASSISTANT` (test) hoặc tên model Gemini (nếu cấu hình `app.ai.provider=gemini`).
+**Kỳ vọng:** `200`, `data.response` có nội dung, `data.model` là model Qwen đã cấu hình.
 
 ### 3. Chat với document của mình
 
@@ -90,17 +90,18 @@ User A để document `PRIVATE`. User B gửi `documentId` đó.
 
 ---
 
-## D. Gemini (SCRUM-12) — môi trường dev
+## D. Qwen (SCRUM-12) — môi trường dev
 
 Trong `aistudyhub-be/.env`:
 
 ```env
-app.ai.provider=gemini
-app.ai.gemini.api-key=<your-key>
-app.ai.fallback-to-local=true
+AI_PROVIDER=qwen
+QWEN_API_KEY=<your-key>
+QWEN_BASE_URL=https://openrouter.ai/api/v1
+QWEN_MODEL=qwen/qwen3.6-flash
 ```
 
-Gửi lại bước A.2 → `data.model` không còn `LOCAL_STUDY_ASSISTANT` nếu Gemini OK.
+Gửi lại bước A.2 → `data.model` phải khớp `QWEN_MODEL`.
 
 ---
 

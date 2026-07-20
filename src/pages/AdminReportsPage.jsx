@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
+  Eye,
   EyeOff,
   Loader2,
   Lock,
@@ -10,12 +11,14 @@ import {
   X,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import OfficePreviewer from '../components/OfficePreviewer'
 import {
   REPORT_REASONS,
   REPORT_STATUS_OPTIONS,
   listAdminReports,
   reportReasonLabel,
   resolveAdminReport,
+  getReportedDocumentPreview,
 } from '../api/reportsApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -43,6 +46,7 @@ export default function AdminReportsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [adminNote, setAdminNote] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const queryStatus = tab === 'pending' ? 'PENDING' : 'PROCESSED'
 
@@ -346,6 +350,17 @@ export default function AdminReportsPage() {
                   <Detail label="Submitted" value={formatDate(selected.createdAt)} />
                 </dl>
 
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(true)}
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#3525cd]/25 bg-[#3525cd]/5 text-sm font-bold text-[#3525cd] hover:bg-[#3525cd]/10"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Preview Document
+                  </button>
+                </div>
+
                 {(selected.status === 'PENDING' || selected.status === 'REVIEWED') && (
                   <div className="mt-6 space-y-4">
                     <div>
@@ -377,12 +392,6 @@ export default function AdminReportsPage() {
                         disabled={busy}
                       />
                       <ModerationButton
-                        icon={Lock}
-                        label="Lock document"
-                        onClick={() => handleResolve('LOCKED')}
-                        disabled={busy}
-                      />
-                      <ModerationButton
                         icon={Trash2}
                         label="Remove document"
                         tone="danger"
@@ -397,6 +406,13 @@ export default function AdminReportsPage() {
           </aside>
         </div>
       </div>
+      {previewOpen && selected && (
+        <PreviewModal
+          docId={selected.documentId}
+          docTitle={selected.documentTitle}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </DashboardShell>
   )
 }
@@ -441,5 +457,116 @@ function ModerationButton({ icon: Icon, label, onClick, disabled, tone = 'defaul
       {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
       {label}
     </button>
+  )
+}
+
+function PreviewModal({ docId, docTitle, onClose }) {
+  const [preview, setPreview] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let ignore = false
+    getReportedDocumentPreview(docId)
+      .then((res) => {
+        if (ignore) return
+        if (res.success) {
+          setPreview(res.data)
+          setError('')
+        } else {
+          setPreview(null)
+          setError(res.message || 'Preview not available.')
+        }
+      })
+      .catch((err) => {
+        if (!ignore) setError(getApiErrorMessage(err, 'Preview not available.'))
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [docId])
+
+  return (
+    <Modal onClose={onClose} title={`Preview: ${docTitle}`} maxWidth="max-w-4xl">
+      <div className="mt-2 min-h-[450px]">
+        {loading ? (
+          <div className="grid h-[450px] place-items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#3525cd]" />
+          </div>
+        ) : error ? (
+          <div className="grid h-[450px] place-items-center text-center">
+            <div>
+              <AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
+              <p className="mt-4 text-sm font-bold text-slate-700">{error}</p>
+            </div>
+          </div>
+        ) : preview?.type === 'pdf' && preview.previewUrl ? (
+          <iframe title={docTitle} src={preview.previewUrl} className="h-[600px] w-full border-0 rounded-xl" />
+        ) : (preview?.type === 'docx' || preview?.type === 'xlsx') && preview.previewUrl ? (
+          <div className="rounded-xl overflow-hidden">
+            <OfficePreviewer previewUrl={preview.previewUrl} blob={preview.blob} type={preview.type} fileName={docTitle} fallbackText={preview.fallbackText} />
+          </div>
+        ) : preview?.type === 'image' && preview.previewUrl ? (
+          <div className="flex h-[600px] items-center justify-center overflow-auto bg-slate-50 p-4 rounded-xl">
+            <img src={preview.previewUrl} alt={docTitle} className="max-h-full max-w-full object-contain" />
+          </div>
+        ) : preview?.type === 'text' ? (
+          <div className="max-h-[600px] overflow-auto bg-[#0b1c30] p-6 font-mono text-sm text-slate-100 rounded-xl">
+            <pre className="whitespace-pre-wrap">{preview.textContent}</pre>
+          </div>
+        ) : (
+          <div className="grid h-[450px] place-items-center text-center">
+            <p className="text-sm text-slate-500">Preview is not supported for this file type.</p>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+function Modal({ children, onClose, title, maxWidth = 'max-w-lg' }) {
+  useEffect(() => {
+    const onEsc = (e) => {
+      if (e.key === 'Escape') onClose?.()
+    }
+    document.addEventListener('keydown', onEsc)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onEsc)
+      document.body.style.overflow = ''
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-[#0b1c30]/40 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal
+      onClick={onClose}
+    >
+      <div
+        className={`w-full ${maxWidth} rounded-2xl bg-white p-6 shadow-[0_24px_60px_rgba(11,28,48,0.18)]`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {title && (
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <h2 className="text-xl font-extrabold text-[#0b1c30]">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
   )
 }

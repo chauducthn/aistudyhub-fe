@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -334,7 +335,10 @@ function SubjectCard({ subject, busy, onEdit, onDelete }) {
     <article className="group relative overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: color }} />
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <Link
+          to={`/documents?subjectId=${subject.id}`}
+          className="flex items-center gap-3 hover:opacity-80 transition"
+        >
           <span
             className="grid h-12 w-12 place-items-center rounded-xl text-sm font-extrabold text-white"
             style={{ backgroundColor: color }}
@@ -342,9 +346,12 @@ function SubjectCard({ subject, busy, onEdit, onDelete }) {
             {code}
           </span>
           <div>
-            <h3 className="text-base font-extrabold leading-tight text-[#0b1c30]">{subject.name}</h3>
+            <h3 className="text-base font-extrabold leading-tight text-[#0b1c30] group-hover:text-[#3525cd] transition">{subject.name}</h3>
+            <p className="mt-1 text-xs font-semibold text-[#74798a]">
+              {subject.documentCount || 0} document{subject.documentCount === 1 ? '' : 's'}
+            </p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-1">
           <ActionIconButton label="Edit" onClick={onEdit} disabled={busy}>
             <Pencil className="h-4 w-4" />

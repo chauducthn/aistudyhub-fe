@@ -1,16 +1,15 @@
-export function getApiErrorMessage(err, fallback = 'Có lỗi xảy ra.') {
+export function getApiErrorMessage(err, fallback = 'An unexpected error occurred.') {
   if (!err.response) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' || err.message?.toLowerCase().includes('timeout')) {
-      return 'API xử lý quá thời gian chờ. Vui lòng thử lại với câu hỏi ngắn hơn hoặc kiểm tra AI provider.'
+      return 'API request timed out. Please try again.'
     }
     if (err.message?.includes('502') || err.code === 'ERR_BAD_RESPONSE') {
       return (
-        'Backend chưa chạy hoặc không phản hồi (lỗi 502). ' +
-        'Mở terminal và chạy: cd aistudyhub-be → .\\mvnw.cmd spring-boot:run ' +
-        '(đợi đến khi thấy "Started").'
+        'Backend service is not running or not responding (502 Bad Gateway). ' +
+        'Please start the backend server and wait until it is fully loaded.'
       )
     }
-    return 'Không kết nối được API. Kiểm tra backend tại http://localhost:8081/api/health'
+    return 'Could not connect to the API server. Please check if the backend is running and healthy.'
   }
 
   if (err.response.status === 502) {
@@ -20,9 +19,9 @@ export function getApiErrorMessage(err, fallback = 'Có lỗi xảy ra.') {
   if (err.response.status === 403) {
     const msg = err.response?.data?.message
     if (msg?.toLowerCase().includes('locked')) {
-      return 'Tài khoản tạm khóa do nhập sai mật khẩu nhiều lần. Đợi 15 phút hoặc dùng Forgot password / admin mở khóa.'
+      return 'Account temporarily locked due to multiple failed login attempts. Please wait 15 minutes or contact support.'
     }
-    return msg || 'Tài khoản bị khóa hoặc không có quyền truy cập.'
+    return msg || 'Access denied: You do not have permission to perform this action.'
   }
 
   return err.response?.data?.message || err.message || fallback

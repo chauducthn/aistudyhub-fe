@@ -60,3 +60,19 @@ input {
   border-color: #ef4444;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
 }
+
+.auth-hero-image-box {
+  transition: max-height 0.2s ease, display 0.2s ease;
+}
+
+@media (max-height: 850px) {
+  .auth-hero-image-box {
+    max-height: 200px !important;
+  }
+}
+
+@media (max-height: 720px) {
+  .auth-hero-image-box {
+    display: none !important;
+  }
+}
