@@ -9,6 +9,7 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
 const DOCUMENT_CACHE_TTL_MS = 20_000
 const DOCUMENT_LIST_CACHE_TTL_MS = 15_000
+const DOCUMENT_UPLOAD_TIMEOUT_MS = 120_000
 
 export function mapDocumentFromApi(raw) {
   if (!raw) return raw
@@ -328,6 +329,7 @@ export async function uploadDocuments(payload, onProgress) {
 
   const { data } = await apiClient.post('/documents/batch', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: DOCUMENT_UPLOAD_TIMEOUT_MS,
     onUploadProgress: (event) => {
       if (!onProgress) return
 
@@ -409,30 +411,6 @@ export async function deleteDocument(id) {
   return {
     ...body,
     data: body.data || { id: String(id) },
-  }
-}
-
-export async function runPlagiarismCheck(id) {
-  if (USE_MOCK) {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    return {
-      success: true,
-      message: 'Plagiarism check completed',
-      data: {
-        plagiarismReport: '### Plagiarism Report\n\n- **Score**: 12%\n- **Sources**:\n  - [Wikipedia: Neural Networks](https://en.wikipedia.org/neural_networks) (10% similarity)\n\nOriginal content matched with public online knowledge.',
-        plagiarismCheckedAt: new Date().toISOString(),
-      },
-    }
-  }
-
-  const docId = normalizeDocId(id)
-  const { data } = await apiClient.post(`/documents/${docId}/plagiarism-check`)
-  const body = unwrapApiResponse(data)
-  invalidateDocumentCaches(docId)
-
-  return {
-    ...body,
-    data: body.data ? mapDocumentFromApi(body.data) : null,
   }
 }
 

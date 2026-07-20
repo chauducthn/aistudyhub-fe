@@ -22,5 +22,7 @@ export function expandToBubbles(record) {
 }
 
 export function recordsToBubbles(records) {
-  return [...records].reverse().flatMap(expandToBubbles)
+  // The session API already returns messages oldest-first. Reversing here made
+  // every conversation appear newest-first whenever a session was reopened.
+  return records.flatMap(expandToBubbles)
 }

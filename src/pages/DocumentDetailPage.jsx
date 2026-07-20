@@ -9,18 +9,15 @@ import {
   FileText,
   Loader2,
   Pencil,
-  ShieldAlert,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
-import ChatMarkdown from '../components/ChatMarkdown'
 import OfficePreviewer from '../components/OfficePreviewer'
 import {
   downloadDocument,
   getDocument,
   getDocumentPreview,
   listSubjects,
-  runPlagiarismCheck,
 } from '../api/documentsApi'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -46,31 +43,6 @@ export default function DocumentDetailPage() {
   const [error, setError] = useState(null)
   const [previewError, setPreviewError] = useState('')
   const [downloading, setDownloading] = useState(false)
-  const [plagiarismLoading, setPlagiarismLoading] = useState(false)
-  const [showPlagiarismModal, setShowPlagiarismModal] = useState(false)
-  const [plagiarismReport, setPlagiarismReport] = useState(null)
-
-  useEffect(() => {
-    if (doc) {
-      setPlagiarismReport(doc.plagiarismReport)
-    }
-  }, [doc])
-
-  const handlePlagiarismCheck = async () => {
-    setPlagiarismLoading(true)
-    try {
-      const res = await runPlagiarismCheck(id)
-      if (res.success) {
-        setPlagiarismReport(res.data.plagiarismReport)
-        setShowPlagiarismModal(true)
-      }
-    } catch (err) {
-      alert(getApiErrorMessage(err, 'Failed to perform plagiarism check.'))
-    } finally {
-      setPlagiarismLoading(false)
-    }
-  }
-
   useEffect(() => {
     let ignore = false
     ;(async () => {
@@ -194,24 +166,6 @@ export default function DocumentDetailPage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={handlePlagiarismCheck}
-                  disabled={plagiarismLoading}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e65c00] px-5 text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(230,92,0,0.28)] transition hover:bg-[#cc5200] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {plagiarismLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
-                  Check Plagiarism
-                </button>
-                {plagiarismReport && (
-                  <button
-                    type="button"
-                    onClick={() => setShowPlagiarismModal(true)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-5 text-sm font-bold text-orange-700 transition hover:bg-orange-100"
-                  >
-                    View Report
-                  </button>
-                )}
-                <button
-                  type="button"
                   onClick={handleDownload}
                   disabled={downloading}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-5 text-sm font-bold text-white shadow-[0_10px_15px_-3px_rgba(53,37,205,0.28)] transition hover:bg-[#2d1fb0] disabled:cursor-not-allowed disabled:opacity-60"
@@ -274,43 +228,6 @@ export default function DocumentDetailPage() {
                 </section>
               </aside>
             </div>
-            {showPlagiarismModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                <div className="relative flex flex-col w-full max-w-3xl max-h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-orange-100">
-                  <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50/40 px-6 py-4">
-                    <div className="flex items-center gap-2 text-orange-800">
-                      <ShieldAlert className="h-5 w-5" />
-                      <h3 className="text-lg font-bold">Plagiarism Analysis Report</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPlagiarismModal(false)}
-                      className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 transition font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-6 bg-slate-50 text-slate-800">
-                    {plagiarismReport ? (
-                      <div className="prose max-w-none text-[#0b1c30]">
-                        <ChatMarkdown content={plagiarismReport} />
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-gray-500">No plagiarism analysis data found.</div>
-                    )}
-                  </div>
-                  <div className="border-t border-gray-100 bg-white px-6 py-4 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setShowPlagiarismModal(false)}
-                      className="h-10 rounded-xl bg-orange-600 px-5 text-sm font-bold text-white transition hover:bg-orange-700 shadow-md"
-                    >
-                      Close Report
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         ) : null}
       </div>

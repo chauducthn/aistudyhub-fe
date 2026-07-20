@@ -1,7 +1,7 @@
 export function getApiErrorMessage(err, fallback = 'An unexpected error occurred.') {
   if (!err.response) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' || err.message?.toLowerCase().includes('timeout')) {
-      return 'API request timed out. Please try again with a shorter prompt or check your AI provider configuration.'
+      return 'API request timed out. Please try again.'
     }
     if (err.message?.includes('502') || err.code === 'ERR_BAD_RESPONSE') {
       return (

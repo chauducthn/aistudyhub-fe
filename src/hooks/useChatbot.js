@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   clearChatHistory,
-  getChatHistory,
   listChatContextDocuments,
   sendChatMessage,
   getChatSessions,
@@ -23,6 +22,9 @@ export function useChatbot() {
   const [clearing, setClearing] = useState(false)
   const [error, setError] = useState('')
   const scrollRef = useRef(null)
+  const sendingRef = useRef(false)
+  const activeSessionRef = useRef(null)
+  const sessionLoadRequestRef = useRef(0)
 
   const [sessions, setSessions] = useState([])
   const [currentSessionId, setCurrentSessionId] = useState(null)
@@ -40,29 +42,38 @@ export function useChatbot() {
       if (res.success) {
         setSessions(res.data || [])
       }
-    } catch (err) {
+    } catch {
+      // Keep the current sidebar state when a background refresh fails.
     }
   }, [])
 
   const selectSession = async (id) => {
-    setCurrentSessionId(id)
+    const normalizedId = String(id)
+    const requestId = ++sessionLoadRequestRef.current
+    activeSessionRef.current = normalizedId
+    setCurrentSessionId(normalizedId)
     setLoadingHistory(true)
     setError('')
     try {
       const res = await getSessionMessages(id, { page: 0, size: 100 })
-      if (res.success) {
+      if (requestId === sessionLoadRequestRef.current && res.success) {
         setBubbles(recordsToBubbles(res.data.content || []))
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not load session messages.'))
+      if (requestId === sessionLoadRequestRef.current) {
+        setError(getApiErrorMessage(err, 'Could not load session messages.'))
+      }
     } finally {
-      setLoadingHistory(false)
+      if (requestId === sessionLoadRequestRef.current) setLoadingHistory(false)
     }
   }
 
   const createNewSession = () => {
+    sessionLoadRequestRef.current += 1
+    activeSessionRef.current = null
     setCurrentSessionId(null)
     setBubbles([])
+    setLoadingHistory(false)
   }
 
   const handleDeleteSession = async (id, event) => {
@@ -112,29 +123,35 @@ export function useChatbot() {
   const send = async (event) => {
     event?.preventDefault?.()
     const text = input.trim()
-    if (!text || sending) return
+    if (!text || sendingRef.current) return
 
+    sendingRef.current = true
     setError('')
     setSending(true)
     setInput('')
-    const tempKey = `temp-${bubbles.length}`
+    const targetSessionId = activeSessionRef.current
+    const tempKey = `temp-${Date.now()}`
     setBubbles((prev) => [...prev, { key: tempKey, role: 'user', text, at: new Date().toISOString() }])
 
     try {
       const res = await sendChatMessage({
         message: text,
         documentId: documentId || undefined,
-        sessionId: currentSessionId || undefined,
+        sessionId: targetSessionId || undefined,
       })
       if (!res.success || !res.data) throw new Error(res.message || 'No response from assistant.')
-      
-      setBubbles((prev) => [
-        ...prev.filter((b) => b.key !== tempKey),
-        ...expandToBubbles(res.data),
-      ])
 
-      if (!currentSessionId && res.data.sessionId) {
-        setCurrentSessionId(String(res.data.sessionId))
+      if (activeSessionRef.current === targetSessionId) {
+        setBubbles((prev) => [
+          ...prev.filter((b) => b.key !== tempKey),
+          ...expandToBubbles(res.data),
+        ])
+
+        if (!targetSessionId && res.data.sessionId) {
+          const createdSessionId = String(res.data.sessionId)
+          activeSessionRef.current = createdSessionId
+          setCurrentSessionId(createdSessionId)
+        }
       }
       loadSessions()
     } catch (err) {
@@ -147,6 +164,7 @@ export function useChatbot() {
         setError(msg)
       }
     } finally {
+      sendingRef.current = false
       setSending(false)
     }
   }

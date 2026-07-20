@@ -82,5 +82,5 @@ Run: `aistudyhub-be/run-chatbot-test.ps1`
 ## Notes
 
 1. **BE restart required** after `ChatbotService` change; old process returned 404 instead of 403.
-2. Gemini (SCRUM-12): not tested live; test profile uses `app.ai.provider=local`.
+2. Kết quả này là bản ghi QA cũ dùng local test provider; runtime hiện tại chỉ hỗ trợ Qwen.
 3. Attach screenshots from manual FE pass to Jira SCRUM-45 when convenient.

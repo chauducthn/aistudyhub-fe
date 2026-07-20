@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2, MessageSquare, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, MessageSquare, Plus, Trash2 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import ChatComposer from '../components/chatbot/ChatComposer'
 import ChatMessageList from '../components/chatbot/ChatMessageList'
@@ -87,7 +87,7 @@ export default function ChatbotPage() {
             <div>
               <h1 className="text-xl font-bold text-[#0b1c30]">AI Study Assistant</h1>
               <p className="text-xs text-slate-500">
-                Ask questions about your documents using external web knowledge and OCR scan fallback.
+                Ask focused questions grounded in your selected study documents.
               </p>
             </div>
             <button
