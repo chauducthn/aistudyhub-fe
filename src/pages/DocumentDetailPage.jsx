@@ -14,6 +14,7 @@ import {
 import DashboardShell from '../components/DashboardShell'
 import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import ChatMarkdown from '../components/ChatMarkdown'
+import OfficePreviewer from '../components/OfficePreviewer'
 import {
   downloadDocument,
   getDocument,
@@ -338,6 +339,18 @@ function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) 
           className="h-full w-full border-0"
         />
       </div>
+    )
+  }
+
+  if ((preview?.type === 'docx' || preview?.type === 'xlsx') && preview.previewUrl) {
+    return (
+      <OfficePreviewer
+        previewUrl={preview.previewUrl}
+        blob={preview.blob}
+        type={preview.type}
+        fileName={doc.originalFilename || doc.title}
+        fallbackText={preview.fallbackText}
+      />
     )
   }
 

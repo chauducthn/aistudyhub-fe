@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, Download, Flag, Loader2 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import ReportDocumentModal from '../components/reports/ReportDocumentModal'
+import OfficePreviewer from '../components/OfficePreviewer'
 import {
   downloadDocument,
   getPublicDocument,
@@ -148,6 +149,8 @@ export default function PublicDocumentDetailPage() {
             </div>
           ) : preview?.type === 'pdf' && preview.previewUrl ? (
             <iframe title={doc.title} src={preview.previewUrl} className="h-[620px] w-full border-0" />
+          ) : (preview?.type === 'docx' || preview?.type === 'xlsx') && preview.previewUrl ? (
+            <OfficePreviewer previewUrl={preview.previewUrl} blob={preview.blob} type={preview.type} fileName={doc.originalFilename || doc.title} fallbackText={preview.fallbackText} />
           ) : preview?.type === 'text' ? (
             <div className="max-h-[620px] overflow-auto bg-[#0b1c30] p-6 font-mono text-sm text-slate-100">
               <pre className="whitespace-pre-wrap">{preview.textContent}</pre>

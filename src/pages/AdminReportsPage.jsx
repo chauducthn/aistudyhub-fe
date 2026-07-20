@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import OfficePreviewer from '../components/OfficePreviewer'
 import {
   REPORT_REASONS,
   REPORT_STATUS_OPTIONS,
@@ -505,6 +506,10 @@ function PreviewModal({ docId, docTitle, onClose }) {
           </div>
         ) : preview?.type === 'pdf' && preview.previewUrl ? (
           <iframe title={docTitle} src={preview.previewUrl} className="h-[600px] w-full border-0 rounded-xl" />
+        ) : (preview?.type === 'docx' || preview?.type === 'xlsx') && preview.previewUrl ? (
+          <div className="rounded-xl overflow-hidden">
+            <OfficePreviewer previewUrl={preview.previewUrl} blob={preview.blob} type={preview.type} fileName={docTitle} fallbackText={preview.fallbackText} />
+          </div>
         ) : preview?.type === 'image' && preview.previewUrl ? (
           <div className="flex h-[600px] items-center justify-center overflow-auto bg-slate-50 p-4 rounded-xl">
             <img src={preview.previewUrl} alt={docTitle} className="max-h-full max-w-full object-contain" />

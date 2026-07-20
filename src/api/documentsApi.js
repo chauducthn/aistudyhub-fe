@@ -200,7 +200,6 @@ function extOf(doc) {
 function fileSourceUrl(doc) {
   return doc.downloadUrl || resolveMediaUrl(doc.fileUrl)
 }
-
 export async function buildPreviewFromDoc(doc) {
   const docId = normalizeDocId(doc.id)
   const ext = extOf(doc)
@@ -208,32 +207,39 @@ export async function buildPreviewFromDoc(doc) {
   const fileName = doc.fileName || doc.originalFilename
   const isPublicUrl = /^https?:\/\//i.test(src || '')
 
-  if (ext !== 'pdf' && !IMAGE_PREVIEW_EXTENSIONS.has(ext) && doc.extractedText) {
-    return {
-      success: true,
-      message: null,
-      data: {
-        type: 'text',
-        textContent: doc.extractedText,
-        fileName
+  if (ext === 'docx' || ext === 'xlsx' || ext === 'xls') {
+    try {
+      const response = await apiClient.get(`/documents/${docId}/download`, { responseType: 'blob' })
+      const blob = response.data
+      return {
+        success: true,
+        message: null,
+        data: {
+          type: ext === 'docx' ? 'docx' : 'xlsx',
+          previewUrl: window.URL.createObjectURL(blob),
+          blob,
+          fallbackText: doc.extractedText || null,
+          fileName
+        }
       }
-    }
-  }
-
-
-  if (OFFICE_PREVIEW_EXTENSIONS.has(ext)) {
-    if (isPublicUrl) {
-      const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`
-      return { success: true, message: null, data: { type: 'office', previewUrl: officeUrl, sourceUrl: src, fileName } }
-    }
-    return {
-      success: false,
-      data: { type: 'download', fileName },
-      message: 'Inline preview for Office files needs a public file URL. Download to view.',
+    } catch (err) {
+      console.error('Failed to download office file for preview:', err)
     }
   }
 
   if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext) && !IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
+    // If it has extracted text, we can show it as a fallback
+    if (doc.extractedText) {
+      return {
+        success: true,
+        message: null,
+        data: {
+          type: 'text',
+          textContent: doc.extractedText,
+          fileName
+        }
+      }
+    }
     return {
       success: false,
       data: { type: 'download', fileName },
