@@ -148,7 +148,7 @@ export default function AdminDashboardPage() {
           />
         </section>
 
-        <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <DashboardSmallMetric
             icon={Eye}
             label="Hidden Docs"
@@ -167,15 +167,9 @@ export default function AdminDashboardPage() {
             value={hasChatbot ? chatbotApiCalls.toLocaleString() : 'N/A'}
             note={hasChatbot ? 'Live' : 'Not implemented yet'}
           />
-          <DashboardSmallMetric
-            icon={Database}
-            label="Storage Used"
-            value={formatStorage(storageUsedGb)}
-            note="Live"
-          />
         </section>
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        <section className="mt-6">
           <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -220,27 +214,6 @@ export default function AdminDashboardPage() {
                 {metricsLoaded ? 'No new users in the last 7 days.' : 'Loading user growth...'}
               </div>
             )}
-          </article>
-
-          <article className="rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-extrabold text-[#0b1c30]">Storage Capacity</h2>
-            <p className="text-sm text-[#74798a]">Infrastructure Health</p>
-            <div className="relative mx-auto mt-6 h-44 w-44">
-              <CircularProgress percent={storagePercent} overLimit={storageOverLimit} />
-              <div className="absolute inset-0 grid place-items-center text-center">
-                <div>
-                  <div className={`text-3xl font-extrabold ${storageOverLimit ? 'text-red-600' : 'text-[#0b1c30]'}`}>
-                    {storagePercent}%
-                  </div>
-                  <div className="text-xs font-semibold text-[#74798a]">
-                    {formatStorage(storageUsedGb)} / {formatStorage(storageLimitGb)}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 rounded-xl bg-[#f8f9ff] px-4 py-3 text-sm font-semibold text-[#464555]">
-              Storage breakdown by document type is not available from the current metrics API.
-            </div>
           </article>
         </section>
 
@@ -407,28 +380,6 @@ export default function AdminDashboardPage() {
                 </div>
               )}
             </article>
-          </div>
-        </section>
-
-        <section className="mt-6 overflow-hidden rounded-2xl border border-[#c7c4d8]/20 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-[#3525cd]" />
-              <div>
-                <h2 className="text-lg font-extrabold text-[#0b1c30]">AI Chatbot Insights</h2>
-                <p className="text-sm text-[#74798a]">Document citations and chatbot usage analytics</p>
-              </div>
-            </div>
-            <span className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
-              Not implemented yet
-            </span>
-          </div>
-          <div className="mt-5 rounded-xl bg-[#f8f9ff] px-5 py-8 text-center">
-            <MessageSquare className="mx-auto h-8 w-8 text-[#74798a]" />
-            <p className="mt-3 text-sm font-extrabold text-[#0b1c30]">Chatbot document analytics are pending</p>
-            <p className="mx-auto mt-1 max-w-xl text-sm text-[#74798a]">
-              The current metrics API only returns chatbot API call count. Top cited documents and research/PDF breakdown are not available yet.
-            </p>
           </div>
         </section>
 

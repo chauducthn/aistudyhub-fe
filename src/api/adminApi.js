@@ -77,8 +77,9 @@ export async function downloadAdminDocument(doc) {
   return { success: true }
 }
 
-export async function listUsers({ search = '', page = 0, size = 10 } = {}) {
+export async function listUsers({ search = '', role = '', page = 0, size = 10 } = {}) {
   const params = { search, page, size }
+  if (role) params.role = role
   return cachedRequest(
     buildCacheKey('admin:users', params),
     async () => {

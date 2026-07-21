@@ -65,13 +65,7 @@ export default function ChatbotPage() {
             )}
           </div>
 
-          <div className="p-4 border-t border-[#1a2542] bg-[#070d1e] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
-                {initials}
-              </div>
-              <span className="text-xs font-bold text-slate-300 truncate max-w-[120px]">{user?.fullName}</span>
-            </div>
+          <div className="p-4 border-t border-[#1a2542] bg-[#070d1e] flex items-center justify-center">
             <button
               type="button"
               onClick={chat.clear}

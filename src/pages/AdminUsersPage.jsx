@@ -16,6 +16,7 @@ import {
   deleteUser,
 } from '../api/adminApi'
 import { getApiErrorMessage } from '../utils/apiError'
+import { resolveMediaUrl } from '../api/mediaUrl'
 
 const pageSize = 10
 
@@ -34,6 +35,7 @@ export default function AdminUsersPage() {
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [bulkAction, setBulkAction] = useState(null)
+  const [role, setRole] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function AdminUsersPage() {
       setLoading(true)
       setError('')
       try {
-        const response = await getAdminUsers({ search, page, size: pageSize })
+        const response = await getAdminUsers({ search, role, page, size: pageSize })
         if (ignore) return
         if (!response.success) throw new Error(response.message || 'Could not load users.')
         setUsers(response.data.content)
@@ -58,7 +60,7 @@ export default function AdminUsersPage() {
     return () => {
       ignore = true
     }
-  }, [search, page, refreshKey])
+  }, [search, role, page, refreshKey])
 
   const reload = () => setRefreshKey((k) => k + 1)
 
@@ -163,14 +165,26 @@ export default function AdminUsersPage() {
           <div>
             <h1 className="text-4xl font-extrabold">User Management</h1>
           </div>
-          <form onSubmit={handleSearchSubmit} className="flex w-full gap-3 md:max-w-xl">
+          <form onSubmit={handleSearchSubmit} className="flex w-full gap-3 md:max-w-2xl items-center">
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               className="h-12 flex-1 rounded-lg border border-slate-200 bg-white px-5 font-semibold outline-none focus:border-[#3b2be0]"
               placeholder="Search by full name or email"
             />
-            <button className="h-12 rounded-lg bg-[#3b2be0] px-6 font-bold text-white" type="submit">
+            <select
+              value={role}
+              onChange={(e) => {
+                setRole(e.target.value)
+                setPage(0)
+              }}
+              className="h-12 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none focus:border-[#3b2be0]"
+            >
+              <option value="">All Roles</option>
+              <option value="USER">User</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+            <button className="h-12 rounded-lg bg-[#3b2be0] px-6 font-bold text-white shrink-0" type="submit">
               Search
             </button>
           </form>
@@ -264,7 +278,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-5">
                       <div className="flex items-center gap-3">
                         {user.avatarUrl ? (
-                          <img src={user.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                          <img src={resolveMediaUrl(user.avatarUrl)} alt="" className="h-10 w-10 rounded-full object-cover" />
                         ) : (
                           <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e8e3ff] text-sm font-extrabold text-[#3427d9]">
                             {initials(user.fullName)}
