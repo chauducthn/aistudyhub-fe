@@ -160,7 +160,7 @@ export default function EditDocumentPage() {
               </dl>
 
               <p className="mt-6 rounded-xl bg-[#eff4ff] px-4 py-3 text-xs font-semibold text-[#464555]">
-                Need to replace the file? Delete this document then upload a new version from the
+                Need to replace the file? Remove this document, then upload a new version from the
                 Upload page.
               </p>
             </aside>

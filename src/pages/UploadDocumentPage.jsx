@@ -7,6 +7,7 @@ import {
   CloudUpload,
   FileText,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
   X,
@@ -55,6 +56,10 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
 
+function fileKey(file) {
+  return `${file.name}:${file.size}:${file.lastModified}`
+}
+
 function validateFile(file) {
   if (!file) return 'Please select a file.'
   if (file.webkitRelativePath || file.name.includes('/') || file.name.includes('\\')) {
@@ -90,6 +95,7 @@ export default function UploadDocumentPage() {
   const [description, setDescription] = useState('')
   const [subjectId, setSubjectId] = useState('')
   const [files, setFiles] = useState([])
+  const [fileOverrides, setFileOverrides] = useState({})
   const [fileError, setFileError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -177,6 +183,7 @@ export default function UploadDocumentPage() {
     const dropped = getFilesFromDrop(event)
     if (dropped.error) {
       setFiles([])
+      setFileOverrides({})
       setFileError(dropped.error)
       return
     }
@@ -196,6 +203,7 @@ export default function UploadDocumentPage() {
     setUploading(true)
     setUploadProgress({ ...EMPTY_UPLOAD_PROGRESS, totalCount: files.length })
     const submittedFiles = files
+    const submittedOverrides = fileOverrides
     try {
       const res = await uploadDocuments(
         {
@@ -203,6 +211,7 @@ export default function UploadDocumentPage() {
           description: description.trim(),
           subjectId,
           files,
+          fileMetadata: files.map((file) => fileOverrides[fileKey(file)] || {}),
         },
         setUploadProgress,
       )
@@ -220,7 +229,12 @@ export default function UploadDocumentPage() {
       if (res.failures?.length) {
         const failedNames = res.failures.map((failure) => failure.fileName).join(', ')
         setError(`${res.failures.length} document(s) failed: ${failedNames}. You can retry the remaining files.`)
-        setFiles(res.failures.map((failure) => submittedFiles[failure.index]).filter(Boolean))
+        const failedFiles = res.failures.map((failure) => submittedFiles[failure.index]).filter(Boolean)
+        const failedKeys = new Set(failedFiles.map(fileKey))
+        setFiles(failedFiles)
+        setFileOverrides(Object.fromEntries(
+          Object.entries(submittedOverrides).filter(([key]) => failedKeys.has(key)),
+        ))
         setUploadProgress(EMPTY_UPLOAD_PROGRESS)
       } else {
         setTimeout(() => navigate('/documents'), 2800)
@@ -232,17 +246,54 @@ export default function UploadDocumentPage() {
     }
   }
 
-  const removeFile = (name) => {
-    const nextFiles = files.filter((item) => item.name !== name)
+  const removeFile = (file) => {
+    const key = fileKey(file)
+    const nextFiles = files.filter((item) => fileKey(item) !== key)
     setFiles(nextFiles)
+    setFileOverrides((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
     setUploadedDocs([])
     setFileError('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const clearFiles = () => {
-    handleFiles([])
+    setFiles([])
+    setFileOverrides({})
+    setFileError('')
+    setError('')
+    setSuccess('')
+    setUploadedDocs([])
+    setUploadProgress(EMPTY_UPLOAD_PROGRESS)
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const customizeFile = (file) => {
+    const key = fileKey(file)
+    setFileOverrides((current) => ({
+      ...current,
+      [key]: { description, subjectId },
+    }))
+  }
+
+  const updateFileOverride = (file, field, value) => {
+    const key = fileKey(file)
+    setFileOverrides((current) => ({
+      ...current,
+      [key]: { ...current[key], [field]: value },
+    }))
+  }
+
+  const resetFileOverride = (file) => {
+    const key = fileKey(file)
+    setFileOverrides((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
   }
   return (
     <DashboardShell>
@@ -266,8 +317,14 @@ export default function UploadDocumentPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
           <section className="rounded-2xl border border-[#c7c4d8]/25 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-extrabold text-[#0b1c30]">Document Details</h2>
-            <p className="text-sm text-[#74798a]">Title and subject help you and your AI assistant find the document later.</p>
+            <h2 className="text-lg font-extrabold text-[#0b1c30]">
+              {files.length > 1 ? 'Default Document Details' : 'Document Details'}
+            </h2>
+            <p className="text-sm text-[#74798a]">
+              {files.length > 1
+                ? 'These defaults apply to every file unless you customize that file below.'
+                : 'Title and subject help you and your AI assistant find the document later.'}
+            </p>
 
             <div className="mt-6 space-y-5">
               <Field
@@ -290,18 +347,31 @@ export default function UploadDocumentPage() {
                 />
               </Field>
 
-              <Field label="Description" id="description" hint="Optional. Short summary or topic tags.">
+              <Field
+                label="Description"
+                id="description"
+                hint={files.length > 1
+                  ? 'Optional default. You can override it for each selected file.'
+                  : 'Optional. Short summary or topic tags.'}
+              >
                 <textarea
                   id="description"
                   rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  maxLength={1000}
                   className="auth-input min-h-[110px] resize-y py-3"
                   placeholder="Describe what this document covers..."
                 />
               </Field>
 
-              <Field label="Subject" id="subject" hint="Optional. Leave blank for uncategorized.">
+              <Field
+                label="Subject"
+                id="subject"
+                hint={files.length > 1
+                  ? 'Optional default. Each file can use a different subject.'
+                  : 'Optional. Leave blank for uncategorized.'}
+              >
                 {creatingSubject ? (
                   <div>
                     <div className="flex gap-2">
@@ -436,32 +506,98 @@ export default function UploadDocumentPage() {
                     </button>
                   )}
                 </div>
-                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                <div className="max-h-[34rem] space-y-2 overflow-y-auto pr-1">
                   {files.map((f, index) => {
                     const fileProgress = uploadProgress.files[index]
+                    const override = fileOverrides[fileKey(f)]
                     return (
-                    <div key={f.name} className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/30 bg-[#f8f9ff] px-4 py-3">
-                      <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e8e3ff] text-[#3525cd]">
-                        <FileText className="h-5 w-5" aria-hidden />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-[#0b1c30]" title={f.name}>{f.name}</p>
-                        <p className="text-xs font-semibold text-[#74798a]">
-                          {formatBytes(f.size)} · {getExtension(f.name).toUpperCase()}
-                        </p>
-                        {fileProgress && <FileUploadStatus state={fileProgress} />}
+                      <div
+                        key={fileKey(f)}
+                        className={`rounded-xl border px-4 py-3 ${
+                          override
+                            ? 'border-[#3525cd]/35 bg-[#f4f2ff]'
+                            : 'border-[#c7c4d8]/30 bg-[#f8f9ff]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#e8e3ff] text-[#3525cd]">
+                            <FileText className="h-5 w-5" aria-hidden />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-[#0b1c30]" title={f.name}>{f.name}</p>
+                            <p className="text-xs font-semibold text-[#74798a]">
+                              {formatBytes(f.size)} · {getExtension(f.name).toUpperCase()}
+                              {override ? ' · Custom details' : ' · Using defaults'}
+                            </p>
+                            {fileProgress && <FileUploadStatus state={fileProgress} />}
+                          </div>
+                          {!uploading && (files.length > 1 || override) && (
+                            <button
+                              type="button"
+                              onClick={() => override ? resetFileOverride(f) : customizeFile(f)}
+                              aria-label={override ? `Use defaults for ${f.name}` : `Customize ${f.name}`}
+                              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-[#3525cd] transition hover:bg-[#e8e3ff]"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              {override ? 'Use defaults' : 'Customize'}
+                            </button>
+                          )}
+                          {!uploading && (
+                            <button
+                              type="button"
+                              onClick={() => removeFile(f)}
+                              aria-label={`Remove ${f.name}`}
+                              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#74798a] transition hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        {override && !uploading && (
+                          <div className="mt-3 grid gap-3 border-t border-[#3525cd]/15 pt-3">
+                            <div>
+                              <label
+                                htmlFor={`file-subject-${index}`}
+                                className="text-xs font-bold text-[#0b1c30]"
+                              >
+                                Subject for this file
+                              </label>
+                              <select
+                                id={`file-subject-${index}`}
+                                value={override.subjectId}
+                                onChange={(event) => updateFileOverride(f, 'subjectId', event.target.value)}
+                                className="auth-input mt-1.5 h-10 bg-white py-0 text-sm"
+                              >
+                                <option value="">Uncategorized</option>
+                                {subjects.map((subject) => (
+                                  <option key={subject.id} value={subject.id}>{subject.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`file-description-${index}`}
+                                className="text-xs font-bold text-[#0b1c30]"
+                              >
+                                Description for this file
+                              </label>
+                              <textarea
+                                id={`file-description-${index}`}
+                                rows={3}
+                                maxLength={1000}
+                                value={override.description}
+                                onChange={(event) => updateFileOverride(f, 'description', event.target.value)}
+                                className="auth-input mt-1.5 min-h-20 resize-y bg-white py-2 text-sm"
+                                placeholder="Optional description for this document..."
+                              />
+                              <p className="mt-1 text-right text-[11px] font-semibold text-[#74798a]">
+                                {override.description.length}/1000
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {!uploading && (
-                        <button
-                          type="button"
-                          onClick={() => removeFile(f.name)}
-                          aria-label="Remove file"
-                          className="grid h-9 w-9 place-items-center rounded-lg text-[#74798a] transition hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
                     )
                   })}
                 </div>
