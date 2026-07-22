@@ -15,6 +15,7 @@ import ReportDocumentModal from '../components/reports/ReportDocumentModal'
 import { downloadDocument, listPublicDocuments } from '../api/documentsApi'
 import { listSubjects } from '../api/subjectsApi'
 import { getApiErrorMessage } from '../utils/apiError'
+import { useAuth } from '../context/useAuth'
 
 const PAGE_SIZE = 8
 
@@ -33,6 +34,7 @@ function formatDate(value) {
 }
 
 export default function PublicDocumentsPage() {
+  const { user } = useAuth()
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [subjectId, setSubjectId] = useState('')
@@ -187,6 +189,7 @@ export default function PublicDocumentsPage() {
                 <thead className="border-b border-[#c7c4d8]/20 bg-[#f8f9ff] text-xs font-bold uppercase tracking-wide text-[#74798a]">
                   <tr>
                     <th className="px-4 py-3">Document</th>
+                    <th className="px-4 py-3">Uploader</th>
                     <th className="hidden px-4 py-3 md:table-cell">Subject</th>
                     <th className="hidden px-4 py-3 lg:table-cell">AI Text</th>
                     <th className="hidden px-4 py-3 lg:table-cell">Size</th>
@@ -197,11 +200,28 @@ export default function PublicDocumentsPage() {
                 <tbody>
                   {data.content.map((doc) => {
                     const subject = subjectMap.get(doc.subjectId)
+                    const isOwnDoc = doc.userId != null && user?.id != null
+                      && String(doc.userId) === String(user.id)
                     return (
-                      <tr key={doc.id} className="border-b border-[#c7c4d8]/15 last:border-0">
-                        <td className="px-4 py-4">
+                      <tr
+                        key={doc.id}
+                        className={`border-b border-[#c7c4d8]/15 last:border-0 transition-colors ${
+                          isOwnDoc ? 'bg-indigo-50/40' : ''
+                        }`}
+                      >
+                        <td className={`px-4 py-4 ${
+                          isOwnDoc ? 'shadow-[inset_4px_0_0_#3525cd]' : ''
+                        }`}
+                        >
                           <p className="font-bold text-[#0b1c30]">{doc.title}</p>
                           <p className="text-xs text-[#74798a]">{doc.fileName}</p>
+                        </td>
+                        <td className="px-4 py-4 font-semibold text-[#464555]">
+                          {isOwnDoc ? (
+                            <span className="ml-1.5 rounded-full bg-[#3525cd]/10 px-2 py-0.5 text-[10px] font-extrabold text-[#3525cd]">
+                              You
+                            </span>
+                          ) : (doc.uploaderName || '—')}
                         </td>
                         <td className="hidden px-4 py-4 md:table-cell">
                           {subject ? (

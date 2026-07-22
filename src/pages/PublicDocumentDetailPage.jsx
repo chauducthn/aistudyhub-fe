@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, Download, Flag, Loader2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Download, Flag, Loader2, UserRound } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
 import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import ReportDocumentModal from '../components/reports/ReportDocumentModal'
@@ -11,9 +11,11 @@ import {
   getPublicDocumentPreview,
 } from '../api/documentsApi'
 import { getApiErrorMessage } from '../utils/apiError'
+import { useAuth } from '../context/useAuth'
 
 export default function PublicDocumentDetailPage() {
   const { id } = useParams()
+  const { user } = useAuth()
   const [doc, setDoc] = useState(null)
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -116,6 +118,13 @@ export default function PublicDocumentDetailPage() {
           <div>
             <h1 className="text-3xl font-extrabold text-[#0b1c30]">{doc.title}</h1>
             <p className="mt-2 text-sm text-[#74798a]">{doc.fileName}</p>
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-[#464555]">
+              <UserRound className="h-4 w-4 text-[#74798a]" />
+              Uploaded by {doc.userId != null && user?.id != null
+                && String(doc.userId) === String(user.id)
+                ? 'You'
+                : (doc.uploaderName || 'Unknown user')}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button

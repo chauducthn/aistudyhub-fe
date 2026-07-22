@@ -30,13 +30,18 @@ const ALLOWED_EXTENSIONS = [
   'xls',
   'xlsx',
   'csv',
-  'odt',
-  'ods',
-  'odp',
 ]
 const MAX_SIZE_MB = 20
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
 const MAX_FILES = 10
+const EMPTY_UPLOAD_PROGRESS = {
+  files: [],
+  transferProgress: 0,
+  uploadedCount: 0,
+  failedCount: 0,
+  savingCount: 0,
+  totalCount: 0,
+}
 
 function getExtension(name = '') {
   const idx = name.lastIndexOf('.')
@@ -89,7 +94,7 @@ export default function UploadDocumentPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [uploadedDocs, setUploadedDocs] = useState([])
-  const [progress, setProgress] = useState(0)
+  const [uploadProgress, setUploadProgress] = useState(EMPTY_UPLOAD_PROGRESS)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [creatingSubject, setCreatingSubject] = useState(false)
@@ -135,6 +140,7 @@ export default function UploadDocumentPage() {
     setError('')
     setSuccess('')
     setUploadedDocs([])
+    setUploadProgress(EMPTY_UPLOAD_PROGRESS)
 
     const incoming = Array.from(nextFiles || [])
     if (incoming.length === 0) {
@@ -182,26 +188,43 @@ export default function UploadDocumentPage() {
     setError('')
     setSuccess('')
 
-    if (title.trim().length > 255) return setError('Title must not exceed 255 characters.')
+    if (files.length === 1 && title.trim().length > 255) {
+      return setError('Title must not exceed 255 characters.')
+    }
     if (files.length === 0) return setError('Please select at least one file to upload.')
 
     setUploading(true)
-    setProgress(0)
+    setUploadProgress({ ...EMPTY_UPLOAD_PROGRESS, totalCount: files.length })
+    const submittedFiles = files
     try {
       const res = await uploadDocuments(
-        { title: title.trim(), description: description.trim(), subjectId, files },
-        setProgress,
+        {
+          title: files.length === 1 ? title.trim() : '',
+          description: description.trim(),
+          subjectId,
+          files,
+        },
+        setUploadProgress,
       )
-      if (!res.success) throw new Error(res.message || 'Upload failed.')
       setUploadedDocs(res.data || [])
       const uploadedCount = res.data?.length || 0
       const extractionLabel = uploadedCount === 1 ? extractionStatusMeta(res.data?.[0]?.extractionStatus).label : null
-      setSuccess(
-        uploadedCount === 1
-          ? `Document uploaded. AI text status: ${extractionLabel}.`
-          : `${uploadedCount} documents uploaded.`,
-      )
-      setTimeout(() => navigate('/documents'), 2800)
+      if (uploadedCount > 0) {
+        setSuccess(
+          uploadedCount === 1
+            ? `Document stored successfully. AI text status: ${extractionLabel}.`
+            : `${uploadedCount} documents stored successfully. AI processing continues in the background.`,
+        )
+      }
+
+      if (res.failures?.length) {
+        const failedNames = res.failures.map((failure) => failure.fileName).join(', ')
+        setError(`${res.failures.length} document(s) failed: ${failedNames}. You can retry the remaining files.`)
+        setFiles(res.failures.map((failure) => submittedFiles[failure.index]).filter(Boolean))
+        setUploadProgress(EMPTY_UPLOAD_PROGRESS)
+      } else {
+        setTimeout(() => navigate('/documents'), 2800)
+      }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed. Please try again.'))
     } finally {
@@ -247,14 +270,23 @@ export default function UploadDocumentPage() {
             <p className="text-sm text-[#74798a]">Title and subject help you and your AI assistant find the document later.</p>
 
             <div className="mt-6 space-y-5">
-              <Field label="Title" id="title" hint="Optional for multi-file uploads. File names are used when this is blank.">
+              <Field
+                label="Title"
+                id="title"
+                hint={files.length > 1
+                  ? 'Multiple files selected. Each document will use its original file name.'
+                  : 'Optional. The file name is used when this is blank.'}
+              >
                 <input
                   id="title"
                   type="text"
-                  value={title}
+                  value={files.length > 1 ? '' : title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="auth-input"
-                  placeholder="e.g. Neural Networks Comprehensive Notes"
+                  placeholder={files.length > 1
+                    ? 'Titles are generated from each file name'
+                    : 'e.g. Neural Networks Comprehensive Notes'}
+                  disabled={files.length > 1}
                 />
               </Field>
 
@@ -374,7 +406,7 @@ export default function UploadDocumentPage() {
                   Click to upload <span className="font-semibold text-[#74798a]">or drag and drop</span>
                 </p>
                 <p className="mt-1 text-xs font-semibold text-[#74798a]">
-                  PDF, Word, PowerPoint, Excel, TXT, MD, CSV, ODF · up to {MAX_SIZE_MB} MB
+                  PDF, Word, PowerPoint, Excel, TXT, MD, CSV · up to {MAX_SIZE_MB} MB
                 </p>
               </div>
               <input
@@ -405,7 +437,9 @@ export default function UploadDocumentPage() {
                   )}
                 </div>
                 <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-                  {files.map((f) => (
+                  {files.map((f, index) => {
+                    const fileProgress = uploadProgress.files[index]
+                    return (
                     <div key={f.name} className="flex items-center gap-3 rounded-xl border border-[#c7c4d8]/30 bg-[#f8f9ff] px-4 py-3">
                       <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e8e3ff] text-[#3525cd]">
                         <FileText className="h-5 w-5" aria-hidden />
@@ -415,6 +449,7 @@ export default function UploadDocumentPage() {
                         <p className="text-xs font-semibold text-[#74798a]">
                           {formatBytes(f.size)} · {getExtension(f.name).toUpperCase()}
                         </p>
+                        {fileProgress && <FileUploadStatus state={fileProgress} />}
                       </div>
                       {!uploading && (
                         <button
@@ -427,7 +462,8 @@ export default function UploadDocumentPage() {
                         </button>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -437,14 +473,20 @@ export default function UploadDocumentPage() {
                 <div className="flex items-center justify-between text-xs font-bold text-[#464555]">
                   <span className="inline-flex items-center gap-1.5">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-[#3525cd]" />
-                    Uploading...
+                    {uploadProgress.transferProgress < 100
+                      ? 'Sending data to server...'
+                      : uploadProgress.savingCount > 0
+                        ? 'Saving to storage...'
+                        : 'Finalizing uploads...'}
                   </span>
-                  <span className="text-[#3525cd]">{progress}%</span>
+                  <span className="text-[#3525cd]">
+                    {uploadProgress.transferProgress}% sent · {uploadProgress.uploadedCount}/{uploadProgress.totalCount} stored
+                  </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eff4ff]">
                   <div
                     className="h-full rounded-full bg-[#3525cd] transition-all duration-200"
-                    style={{ width: `${progress}%` }}
+                    style={{ width: `${uploadProgress.transferProgress}%` }}
                   />
                 </div>
               </div>
@@ -485,7 +527,7 @@ export default function UploadDocumentPage() {
                 {uploading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Uploading {progress}%
+                    Uploading {uploadProgress.uploadedCount}/{uploadProgress.totalCount || files.length}
                   </>
                 ) : (
                   <>
@@ -510,6 +552,30 @@ function Field({ label, id, required, hint, children }) {
       </label>
       <div className="mt-2">{children}</div>
       {hint && <p className="mt-1.5 text-xs font-medium text-[#74798a]">{hint}</p>}
+    </div>
+  )
+}
+
+function FileUploadStatus({ state }) {
+  const meta = {
+    queued: { label: 'Queued', className: 'text-[#74798a]' },
+    uploading: { label: `Sending ${state.progress}%`, className: 'text-[#3525cd]' },
+    saving: { label: 'Sent · saving to storage', className: 'text-amber-700' },
+    uploaded: { label: 'Stored successfully', className: 'text-emerald-700' },
+    failed: { label: state.error || 'Upload failed', className: 'text-red-600' },
+  }[state.status] || { label: state.status, className: 'text-[#74798a]' }
+
+  return (
+    <div className="mt-1.5">
+      <p className={`text-xs font-bold ${meta.className}`}>{meta.label}</p>
+      {(state.status === 'uploading' || state.status === 'saving') && (
+        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e3e5f2]">
+          <div
+            className="h-full rounded-full bg-[#3525cd] transition-all duration-200"
+            style={{ width: `${state.progress}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }

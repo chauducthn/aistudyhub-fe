@@ -16,23 +16,13 @@ import {
   createSubject,
   deleteSubject,
   listSubjects,
+  SUBJECT_ACCENT_COLOR,
   updateSubject,
 } from '../api/subjectsApi'
 import { getApiErrorMessage } from '../utils/apiError'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ActionIconButton from '../components/ui/ActionIconButton'
-
-const SUBJECT_COLORS = [
-  '#3525cd',
-  '#10b3a8',
-  '#a78bfa',
-  '#57dffe',
-  '#f59e0b',
-  '#ef4444',
-  '#ec4899',
-  '#22c55e',
-]
 
 const NAME_MAX = 120
 
@@ -41,14 +31,6 @@ function deriveCode(name = '') {
   if (words.length === 0) return '?'
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
   return (words[0][0] + words[1][0]).toUpperCase()
-}
-
-function deriveColor(name = '') {
-  let hash = 0
-  for (let i = 0; i < name.length; i += 1) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
-  }
-  return SUBJECT_COLORS[hash % SUBJECT_COLORS.length]
 }
 
 export default function SubjectsPage({ shellType = 'user' }) {
@@ -329,11 +311,10 @@ export default function SubjectsPage({ shellType = 'user' }) {
 }
 
 function SubjectCard({ subject, busy, onEdit, onDelete }) {
-  const color = deriveColor(subject.name)
   const code = deriveCode(subject.name)
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: color }} />
+      <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: SUBJECT_ACCENT_COLOR }} />
       <div className="flex items-start justify-between gap-3">
         <Link
           to={`/documents?subjectId=${subject.id}`}
@@ -341,7 +322,7 @@ function SubjectCard({ subject, busy, onEdit, onDelete }) {
         >
           <span
             className="grid h-12 w-12 place-items-center rounded-xl text-sm font-extrabold text-white"
-            style={{ backgroundColor: color }}
+            style={{ backgroundColor: SUBJECT_ACCENT_COLOR }}
           >
             {code}
           </span>

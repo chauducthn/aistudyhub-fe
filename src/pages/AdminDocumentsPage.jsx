@@ -16,21 +16,17 @@ const STATUS_OPTIONS = [
   { value: 'PUBLIC', label: 'Public' },
   { value: 'PRIVATE', label: 'Private' },
   { value: 'HIDDEN', label: 'Hidden' },
-  { value: 'LOCKED', label: 'Locked' },
   { value: 'REMOVED', label: 'Removed' },
-  { value: 'DELETED', label: 'Deleted' },
 ]
 
-// Statuses an admin can set (BE rejects DELETED via this endpoint).
-const ADMIN_STATUSES = ['PUBLIC', 'PRIVATE', 'HIDDEN', 'LOCKED', 'REMOVED']
+// Statuses an admin can set.
+const ADMIN_STATUSES = ['PUBLIC', 'PRIVATE', 'HIDDEN', 'REMOVED']
 
 const STATUS_TONE = {
   PUBLIC: 'bg-emerald-50 text-emerald-700',
   PRIVATE: 'bg-slate-100 text-slate-600',
   HIDDEN: 'bg-amber-50 text-amber-700',
-  LOCKED: 'bg-orange-50 text-orange-700',
   REMOVED: 'bg-red-50 text-red-700',
-  DELETED: 'bg-red-100 text-red-800',
 }
 
 function formatBytes(bytes) {

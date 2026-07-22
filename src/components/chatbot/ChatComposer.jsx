@@ -7,15 +7,23 @@ export default function ChatComposer({
   onSubmit,
   sending,
   documents,
+  searchingPublicDocuments,
+  publicDocumentSearchError,
+  onSearchPublicDocuments,
   documentId,
   onDocumentIdChange,
+  currentUserId,
 }) {
   return (
     <form onSubmit={onSubmit} className="border-t border-[#c7c4d8]/20 bg-[#f8f9ff] px-4 py-3 sm:px-6">
       <DocumentContextSelect
         documents={documents}
+        searchingPublicDocuments={searchingPublicDocuments}
+        publicDocumentSearchError={publicDocumentSearchError}
+        onSearchPublicDocuments={onSearchPublicDocuments}
         documentId={documentId}
         onDocumentIdChange={onDocumentIdChange}
+        currentUserId={currentUserId}
       />
       <div className="flex items-end gap-2">
         <textarea

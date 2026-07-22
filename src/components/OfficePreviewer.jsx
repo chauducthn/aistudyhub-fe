@@ -1,25 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as docx from 'docx-preview'
 import * as XLSX from 'xlsx'
-import { Loader2, AlertCircle, FileSpreadsheet, FileText } from 'lucide-react'
+import { Loader2, AlertCircle, FileSpreadsheet } from 'lucide-react'
+import ExcelSheetPreview from './ExcelSheetPreview'
 
 export default function OfficePreviewer({ previewUrl, blob, type, fileName, fallbackText }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [useFallback, setUseFallback] = useState(false)
-  const [debugLogs, setDebugLogs] = useState([])
   
   // Excel states
   const [workbook, setWorkbook] = useState(null)
   const [sheets, setSheets] = useState([])
   const [activeSheet, setActiveSheet] = useState('')
-  const [sheetHtml, setSheetHtml] = useState('')
 
   const containerRef = useRef(null)
 
   const addLog = (msg) => {
     console.log(`[OfficePreviewer Debug] ${msg}`)
-    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`])
   }
 
   useEffect(() => {
@@ -29,7 +27,6 @@ export default function OfficePreviewer({ previewUrl, blob, type, fileName, fall
       setLoading(true)
       setError(null)
       setUseFallback(false)
-      setDebugLogs([])
       try {
         addLog(`loadPreview invoked. Type: ${type}, FileName: ${fileName}`)
         let activeBlob = blob
@@ -98,7 +95,14 @@ export default function OfficePreviewer({ previewUrl, blob, type, fileName, fall
 
           addLog('Parsing spreadsheet workbook...')
           const data = new Uint8Array(buffer)
-          const wb = XLSX.read(data, { type: 'array' })
+          const wb = XLSX.read(data, {
+            type: 'array',
+            bookFiles: true,
+            cellFormula: true,
+            cellHTML: true,
+            cellNF: true,
+            cellStyles: true,
+          })
           setWorkbook(wb)
           setSheets(wb.SheetNames)
           addLog(`Workbook parsed. Sheets found: ${wb.SheetNames.join(', ')}`)
@@ -121,17 +125,7 @@ export default function OfficePreviewer({ previewUrl, blob, type, fileName, fall
     return () => {
       isMounted = false
     }
-  }, [previewUrl, blob, type, fallbackText])
-
-  // Update Excel active sheet html table
-  useEffect(() => {
-    if (type === 'xlsx' && workbook && activeSheet) {
-      const sheet = workbook.Sheets[activeSheet]
-      // sheet_to_html outputs standard HTML table representation
-      const html = XLSX.utils.sheet_to_html(sheet)
-      setSheetHtml(html)
-    }
-  }, [workbook, activeSheet, type])
+  }, [previewUrl, blob, type, fileName, fallbackText])
 
   // Early return for loading and error ONLY for XLSX type
   if (type === 'xlsx') {
@@ -224,29 +218,87 @@ export default function OfficePreviewer({ previewUrl, blob, type, fileName, fall
             flex: 1;
             overflow: auto;
             background: #ffffff;
+            width: 100%;
           }
           .xlsx-preview-wrapper table {
             border-collapse: collapse;
+            table-layout: fixed;
             font-size: 13px;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #333333;
           }
           .xlsx-preview-wrapper th, .xlsx-preview-wrapper td {
-            border: 1px solid #d4d4d4 !important;
-            padding: 6px 10px !important;
-            min-width: 80px;
-            height: 24px;
+            border: 1px solid #d4d4d4;
+            padding: 3px 7px;
             vertical-align: middle;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
-          /* Style index headers similar to real Excel grid lines */
-          .xlsx-preview-wrapper table tr:first-child td,
-          .xlsx-preview-wrapper table tr td:first-child {
+          .xlsx-preview-wrapper .excel-column-header,
+          .xlsx-preview-wrapper .excel-row-header,
+          .xlsx-preview-wrapper .excel-corner-cell {
             background-color: #f1f3f4;
             font-weight: bold;
             text-align: center;
             color: #5f6368;
             font-size: 11px;
-            border: 1px solid #c0c0c0 !important;
+            border: 1px solid #c0c0c0;
+            position: sticky;
+            z-index: 4;
+          }
+          .xlsx-preview-wrapper .excel-column-header,
+          .xlsx-preview-wrapper .excel-corner-cell {
+            top: 0;
+          }
+          .xlsx-preview-wrapper .excel-row-header,
+          .xlsx-preview-wrapper .excel-corner-cell {
+            left: 0;
+          }
+          .xlsx-preview-wrapper .excel-corner-cell {
+            z-index: 5;
+          }
+          .xlsx-preview-wrapper .excel-chart-overlay {
+            position: absolute;
+            z-index: 3;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+            pointer-events: none;
+          }
+          .xlsx-preview-wrapper .excel-sheets-footer {
+            display: flex;
+            align-items: center;
+            background-color: #f8f9fa;
+            border-top: 1px solid #d4d4d4;
+            height: 40px;
+            padding-left: 16px;
+            width: 100%;
+            overflow-x: auto;
+          }
+          .xlsx-preview-wrapper .excel-sheet-tab {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-right: 1px solid #e2e8f0;
+            background-color: #f8f9fa;
+            color: #5f6368;
+            user-select: none;
+            transition: all 0.15s ease;
+            border-bottom: 3px solid transparent;
+          }
+          .xlsx-preview-wrapper .excel-sheet-tab.active {
+            background-color: #ffffff;
+            color: #107c41;
+            border-bottom: 3px solid #107c41;
+            font-weight: bold;
+          }
+          .xlsx-preview-wrapper .excel-sheet-tab:hover:not(.active) {
+            background-color: #eff1f3;
+            color: #1e293b;
           }
         `}} />
 
@@ -262,29 +314,21 @@ export default function OfficePreviewer({ previewUrl, blob, type, fileName, fall
         </div>
 
         {/* Spreadsheet container */}
-        <div className="excel-table-container p-4">
-          <div 
-            dangerouslySetInnerHTML={{ __html: sheetHtml }} 
-            className="inline-block min-w-full"
-          />
+        <div className="excel-table-container">
+          <ExcelSheetPreview workbook={workbook} activeSheet={activeSheet} />
         </div>
 
         {/* Sheet Tabs Selector at bottom */}
-        {sheets.length > 1 && (
-          <div className="bg-[#f3f4f6] border-t border-gray-300 px-4 py-2 flex items-center gap-1.5 overflow-x-auto select-none">
-            <span className="text-[11px] font-bold text-gray-500 mr-2 uppercase tracking-wide">Sheets:</span>
+        {sheets.length > 0 && (
+          <div className="excel-sheets-footer">
             {sheets.map(sheetName => (
-              <button
+              <div
                 key={sheetName}
                 onClick={() => setActiveSheet(sheetName)}
-                className={`px-3 py-1 rounded text-xs font-semibold transition-all shadow-sm ${
-                  activeSheet === sheetName
-                    ? 'bg-white text-[#107c41] border border-gray-300 font-bold'
-                    : 'bg-[#e1e2e5] text-gray-700 hover:bg-gray-200 hover:text-black border border-transparent'
-                }`}
+                className={`excel-sheet-tab ${activeSheet === sheetName ? 'active' : ''}`}
               >
                 {sheetName}
-              </button>
+              </div>
             ))}
           </div>
         )}
