@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  Archive,
   AlertTriangle,
   CheckCircle2,
   Download,
@@ -63,10 +64,10 @@ const fileTypeStyle = {
 
 export default function MyDocumentsPage() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [subjectId, setSubjectId] = useState('')
+  const [subjectId, setSubjectId] = useState(() => searchParams.get('subjectId') || '')
   const [visibility, setVisibility] = useState('ALL')
   const [scope, setScope] = useState('mine')
   const [fileType, setFileType] = useState('')
@@ -80,6 +81,9 @@ export default function MyDocumentsPage() {
   const [message, setMessage] = useState('')
   const [editing, setEditing] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
+  const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
 
   const subjectMap = useMemo(() => {
     const map = new Map()
@@ -101,11 +105,6 @@ export default function MyDocumentsPage() {
       ignore = true
     }
   }, [])
-
-  useEffect(() => {
-    const subId = searchParams.get('subjectId') || ''
-    setSubjectId(subId)
-  }, [searchParams])
 
   useEffect(() => {
     let ignore = false
@@ -131,6 +130,7 @@ export default function MyDocumentsPage() {
           ...res.data,
           content,
         })
+        setSelectedIds([])
       } catch (err) {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load documents.'))
       } finally {
@@ -212,11 +212,11 @@ export default function MyDocumentsPage() {
     try {
       const res = await deleteDocument(deletingId)
       if (!res.success) throw new Error(res.message)
-      setMessage('Document deleted.')
+      setMessage('Document removed.')
       setDeletingId(null)
       await refresh()
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not delete document.'))
+      setError(getApiErrorMessage(err, 'Could not remove document.'))
     } finally {
       setBusyId(null)
     }
@@ -246,6 +246,55 @@ export default function MyDocumentsPage() {
     } finally {
       setBusyId(null)
     }
+  }
+
+  const toggleSelected = (documentId) => {
+    setSelectedIds((current) =>
+      current.includes(documentId)
+        ? current.filter((id) => id !== documentId)
+        : [...current, documentId],
+    )
+  }
+
+  const currentPageIds = scope === 'mine' ? data.content.map((doc) => doc.id) : []
+  const allCurrentSelected = currentPageIds.length > 0 && currentPageIds.every((id) => selectedIds.includes(id))
+
+  const toggleSelectCurrentPage = () => {
+    setSelectedIds(allCurrentSelected ? [] : currentPageIds)
+  }
+
+  const runBulkUpdate = async (payload, successLabel) => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    setBusyId('bulk')
+    setError('')
+    setMessage('')
+    const results = await Promise.allSettled(ids.map((id) => updateDocument(id, payload)))
+    const succeeded = results.filter((result) => result.status === 'fulfilled' && result.value?.success).length
+    const failed = ids.length - succeeded
+    if (succeeded > 0) setMessage(`${successLabel}: ${succeeded}/${ids.length} documents updated.`)
+    if (failed > 0) setError(`${failed} document(s) could not be updated. They may be moderated or no longer available.`)
+    setBulkEditOpen(false)
+    setSelectedIds([])
+    await refresh()
+    setBusyId(null)
+  }
+
+  const runBulkRemove = async () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    setBusyId('bulk')
+    setError('')
+    setMessage('')
+    const results = await Promise.allSettled(ids.map((id) => deleteDocument(id)))
+    const succeeded = results.filter((result) => result.status === 'fulfilled' && result.value?.success).length
+    const failed = ids.length - succeeded
+    if (succeeded > 0) setMessage(`${succeeded}/${ids.length} documents removed.`)
+    if (failed > 0) setError(`${failed} document(s) could not be removed.`)
+    setBulkRemoveOpen(false)
+    setSelectedIds([])
+    await refresh()
+    setBusyId(null)
   }
 
   const filtersActive = !!search || !!subjectId || visibility !== 'ALL' || !!fileType || scope !== 'mine'
@@ -421,11 +470,55 @@ export default function MyDocumentsPage() {
           </div>
         )}
 
+        {scope === 'mine' && selectedIds.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#3525cd]/20 bg-[#eef0ff] px-4 py-3">
+            <span className="mr-auto text-sm font-extrabold text-[#3525cd]">
+              {selectedIds.length} document{selectedIds.length === 1 ? '' : 's'} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setBulkEditOpen(true)}
+              disabled={busyId === 'bulk'}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#3525cd]/25 bg-white px-3 text-sm font-bold text-[#3525cd] disabled:opacity-50"
+            >
+              <Pencil className="h-4 w-4" /> Edit selected
+            </button>
+            <button
+              type="button"
+              onClick={() => runBulkUpdate({ visibility: 'PRIVATE' }, 'Made private')}
+              disabled={busyId === 'bulk'}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#3525cd]/25 bg-white px-3 text-sm font-bold text-[#3525cd] disabled:opacity-50"
+            >
+              <EyeOff className="h-4 w-4" /> Make private
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkRemoveOpen(true)}
+              disabled={busyId === 'bulk'}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-red-600 px-3 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {busyId === 'bulk' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+              Remove
+            </button>
+          </div>
+        )}
+
         <section className="mt-4 overflow-hidden rounded-2xl border border-[#c7c4d8]/25 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="bg-[#f5f7ff] text-xs font-bold uppercase tracking-wide text-[#74798a]">
                 <tr>
+                  {scope === 'mine' && (
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={allCurrentSelected}
+                        onChange={toggleSelectCurrentPage}
+                        aria-label="Select all documents on this page"
+                        className="h-4 w-4 accent-[#3525cd]"
+                      />
+                    </th>
+                  )}
                   <th className="px-6 py-3">Document</th>
                   <th className="px-4 py-3">Subject</th>
                   <th className="px-4 py-3">Visibility</th>
@@ -439,14 +532,14 @@ export default function MyDocumentsPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, idx) => (
                     <tr key={idx} className="border-t border-[#c7c4d8]/15">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={scope === 'mine' ? 8 : 7} className="px-6 py-4">
                         <div className="h-8 w-full animate-pulse rounded-lg bg-[#eef0ff]" />
                       </td>
                     </tr>
                   ))
                 ) : data.content.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-16">
+                    <td colSpan={scope === 'mine' ? 8 : 7} className="px-6 py-16">
                       <div className="flex flex-col items-center gap-3 text-center">
                         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#eef0ff] text-[#3525cd]">
                           <FileText className="h-6 w-6" />
@@ -480,6 +573,17 @@ export default function MyDocumentsPage() {
                 ) : (
                   data.content.map((doc) => (
                     <tr key={doc.id} className="border-t border-[#c7c4d8]/15">
+                      {scope === 'mine' && (
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(doc.id)}
+                            onChange={() => toggleSelected(doc.id)}
+                            aria-label={`Select ${doc.title}`}
+                            className="h-4 w-4 accent-[#3525cd]"
+                          />
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <span
@@ -561,7 +665,7 @@ export default function MyDocumentsPage() {
                                 </ActionIconButton>
                               )}
                               <ActionIconButton
-                                label="Delete"
+                                label="Remove"
                                 onClick={() => setDeletingId(doc.id)}
                                 disabled={busyId === doc.id}
                                 tone="danger"
@@ -622,17 +726,87 @@ export default function MyDocumentsPage() {
 
         {deletingId && (
           <ConfirmDialog
-            title="Delete this document?"
+            title="Remove this document?"
             description="This action cannot be undone. The file will be removed from your library."
-            confirmLabel="Delete"
+            confirmLabel="Remove"
             tone="danger"
             busy={busyId === deletingId}
             onCancel={() => setDeletingId(null)}
             onConfirm={handleConfirmDelete}
           />
         )}
+
+        {bulkEditOpen && (
+          <BulkEditDocumentsModal
+            count={selectedIds.length}
+            subjects={subjects}
+            saving={busyId === 'bulk'}
+            onClose={() => setBulkEditOpen(false)}
+            onSave={(payload) => runBulkUpdate(payload, 'Bulk edit')}
+          />
+        )}
+
+        {bulkRemoveOpen && (
+          <ConfirmDialog
+            title={`Remove ${selectedIds.length} selected document${selectedIds.length === 1 ? '' : 's'}?`}
+            description="The selected documents will be marked as Removed and disappear from your library and chatbot context."
+            confirmLabel="Remove"
+            tone="danger"
+            busy={busyId === 'bulk'}
+            onCancel={() => setBulkRemoveOpen(false)}
+            onConfirm={runBulkRemove}
+          />
+        )}
       </div>
     </DashboardShell>
+  )
+}
+
+function BulkEditDocumentsModal({ count, subjects, saving, onClose, onSave }) {
+  const [subjectId, setSubjectId] = useState('__UNCHANGED__')
+  const [visibility, setVisibility] = useState('')
+  const hasChanges = subjectId !== '__UNCHANGED__' || visibility !== ''
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    if (!hasChanges) return
+    const payload = {}
+    if (subjectId !== '__UNCHANGED__') payload.subjectId = subjectId === '__NONE__' ? '' : subjectId
+    if (visibility) payload.visibility = visibility
+    onSave(payload)
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#0b1c30]">Edit {count} selected documents</h2>
+          <p className="mt-1 text-sm text-[#74798a]">Only selected fields will be applied to every document.</p>
+        </div>
+        <div>
+          <label htmlFor="bulk-subject" className="text-sm font-bold text-[#0b1c30]">Subject</label>
+          <select id="bulk-subject" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} className="auth-input mt-2">
+            <option value="__UNCHANGED__">Keep current subjects</option>
+            <option value="__NONE__">Move to Uncategorized</option>
+            {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="bulk-visibility" className="text-sm font-bold text-[#0b1c30]">Visibility</label>
+          <select id="bulk-visibility" value={visibility} onChange={(event) => setVisibility(event.target.value)} className="auth-input mt-2">
+            <option value="">Keep current visibility</option>
+            <option value="PRIVATE">Private</option>
+            <option value="PUBLIC">Public</option>
+          </select>
+        </div>
+        <div className="flex justify-end gap-3 border-t border-[#c7c4d8]/30 pt-4">
+          <button type="button" onClick={onClose} disabled={saving} className="h-11 rounded-xl border border-[#c7c4d8]/40 px-5 text-sm font-bold text-[#0b1c30]">Cancel</button>
+          <button type="submit" disabled={saving || !hasChanges} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#3525cd] px-5 text-sm font-bold text-white disabled:opacity-50">
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Apply changes
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

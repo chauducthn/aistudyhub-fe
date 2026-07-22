@@ -110,6 +110,47 @@ describe('uploadDocuments', () => {
     ])
   })
 
+  it('uses per-file descriptions and subjects when batch metadata is provided', async () => {
+    const files = [
+      new File(['one'], 'one.txt', { type: 'text/plain' }),
+      new File(['two'], 'two.txt', { type: 'text/plain' }),
+    ]
+    const submitted = []
+
+    apiClient.post.mockImplementation(async (url, formData, config) => {
+      const file = formData.get('file')
+      submitted.push({
+        fileName: file.name,
+        description: formData.get('description'),
+        subjectId: formData.get('subjectId'),
+      })
+      config.onUploadProgress({ loaded: file.size, total: file.size })
+      return {
+        data: {
+          success: true,
+          message: 'Document uploaded',
+          data: apiDocument(file, file.name),
+        },
+      }
+    })
+
+    const result = await uploadDocuments({
+      files,
+      description: 'Shared description',
+      subjectId: '10',
+      fileMetadata: [
+        { description: 'Description for one', subjectId: '11' },
+        { description: 'Description for two', subjectId: '' },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(submitted).toEqual([
+      { fileName: 'one.txt', description: 'Description for one', subjectId: '11' },
+      { fileName: 'two.txt', description: 'Description for two', subjectId: null },
+    ])
+  })
+
   it('propagates an authentication failure instead of reporting every file as failed', async () => {
     const files = [
       new File(['one'], 'one.txt', { type: 'text/plain' }),

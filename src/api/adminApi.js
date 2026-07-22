@@ -38,12 +38,14 @@ export async function listAdminDocuments({ keyword = '', status = '', userId = '
 /** PATCH /api/admin/documents/{id}/status */
 export async function updateAdminDocumentStatus(documentId, status) {
   const { data } = await apiClient.patch(`/admin/documents/${documentId}/status`, { status })
+  invalidateAdminCaches()
   return data
 }
 
 /** DELETE /api/admin/documents/{id} */
 export async function deleteAdminDocument(documentId) {
   const { data } = await apiClient.delete(`/admin/documents/${documentId}`)
+  invalidateAdminCaches()
   return data
 }
 

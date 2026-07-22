@@ -365,12 +365,14 @@ export async function uploadDocuments(payload, onProgress) {
       const index = nextIndex
       nextIndex += 1
       const file = files[index]
+      const fileMetadata = payload.fileMetadata?.[index] || {}
       emitProgress(index, { status: 'uploading', progress: 0, error: null })
 
       try {
         const result = await uploadDocument(
           {
             ...payload,
+            ...fileMetadata,
             file,
             title: isMultiFileUpload
               ? titleFromFilename(file.name)
@@ -447,8 +449,7 @@ export async function updateDocument(id, payload) {
 
   if (
     payload.title !== undefined ||
-    payload.description !== undefined ||
-    payload.subjectId !== undefined
+    payload.description !== undefined
   ) {
     const body = {}
 
@@ -460,14 +461,16 @@ export async function updateDocument(id, payload) {
       body.description = payload.description?.trim() ?? ''
     }
 
-    if (payload.subjectId !== undefined) {
-      body.subjectId =
-        payload.subjectId === '' || payload.subjectId == null
-          ? null
-          : Number(payload.subjectId)
-    }
-
     const { data } = await apiClient.patch(`/documents/${docId}`, body)
+    result = unwrapApiResponse(data)
+  }
+
+  if (payload.subjectId !== undefined) {
+    const subjectId =
+      payload.subjectId === '' || payload.subjectId == null
+        ? null
+        : Number(payload.subjectId)
+    const { data } = await apiClient.patch(`/documents/${docId}/subject`, { subjectId })
     result = unwrapApiResponse(data)
   }
 
