@@ -1,6 +1,6 @@
 import apiClient from './client'
 import { mapPageResponse, unwrapApiResponse } from './apiHelpers'
-import { listMyDocuments, listPublicDocuments } from './documentsApi'
+import { getPublicDocument, listMyDocuments, listPublicDocuments } from './documentsApi'
 import { buildCacheKey, cachedRequest, invalidateCache } from './requestCache'
 
 const CHAT_RESPONSE_TIMEOUT_MS = 90_000
@@ -79,23 +79,35 @@ export async function clearChatHistory() {
   return unwrapApiResponse(data)
 }
 
-/** Merge own + public documents eligible for chat context (SCRUM-46 / SCRUM-49). */
+/** Load only the current user's documents. Public documents are searched on demand. */
 export async function listChatContextDocuments() {
-  const [mineRes, publicRes] = await Promise.all([
-    listMyDocuments({ page: 0, size: 100 }).catch(() => ({ success: false, data: { content: [] } })),
-    listPublicDocuments({ page: 0, size: 100 }).catch(() => ({ success: false, data: { content: [] } })),
-  ])
+  const mineRes = await listMyDocuments({ page: 0, size: 100 })
+  const list = (mineRes.data?.content || []).map((document) => ({ ...document, source: 'mine' }))
+  list.sort((a, b) => {
+    const left = a.fileName || a.originalFilename || a.title
+    const right = b.fileName || b.originalFilename || b.title
+    return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+  })
+  return { success: mineRes.success, data: list, message: mineRes.message }
+}
 
-  const map = new Map()
-  if (mineRes.success) {
-    mineRes.data.content.forEach((doc) => map.set(doc.id, { ...doc, source: 'mine' }))
-  }
-  if (publicRes.success) {
-    publicRes.data.content.forEach((doc) => {
-      if (!map.has(doc.id)) map.set(doc.id, { ...doc, source: 'public' })
-    })
-  }
+/** Search a small public result page only after the user provides a keyword. */
+export async function searchPublicChatContextDocuments(search) {
+  const keyword = (search || '').trim()
+  if (keyword.length < 2) return { success: true, data: [], message: null }
 
-  const list = [...map.values()].sort((a, b) => a.title.localeCompare(b.title))
-  return { success: true, data: list, message: null }
+  const response = await listPublicDocuments({ search: keyword, page: 0, size: 20 })
+  return {
+    ...response,
+    data: (response.data?.content || []).map((document) => ({ ...document, source: 'public' })),
+  }
+}
+
+/** Resolve a public document linked from its detail page without listing public documents. */
+export async function getPublicChatContextDocument(id) {
+  const response = await getPublicDocument(id)
+  return {
+    ...response,
+    data: response.data ? { ...response.data, source: 'public' } : null,
+  }
 }

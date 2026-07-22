@@ -16,6 +16,10 @@ export function getApiErrorMessage(err, fallback = 'An unexpected error occurred
     return err.response?.data?.message || 'AI Gateway / Proxy service returned 502 Bad Gateway. Check AI provider settings.'
   }
 
+  if (err.response.status === 401) {
+    return 'Your session has expired. Please sign in again and retry the upload.'
+  }
+
   if (err.response.status === 403) {
     const msg = err.response?.data?.message
     if (msg?.toLowerCase().includes('locked')) {

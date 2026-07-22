@@ -3,16 +3,7 @@ import { cachedRequest, invalidateCache } from './requestCache'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
 
-const SUBJECT_COLORS = [
-  '#3525cd',
-  '#10b3a8',
-  '#a78bfa',
-  '#57dffe',
-  '#f59e0b',
-  '#ef4444',
-  '#ec4899',
-  '#22c55e',
-]
+export const SUBJECT_ACCENT_COLOR = '#3525cd'
 
 function deriveCode(name) {
   const parts = (name || '')
@@ -27,7 +18,7 @@ function deriveCode(name) {
   return code.length >= 2 ? code.slice(0, 8) : `${code}X`.slice(0, 3)
 }
 
-export function mapSubjectFromApi(raw, index = 0) {
+export function mapSubjectFromApi(raw) {
   if (!raw) return raw
 
   return {
@@ -36,7 +27,7 @@ export function mapSubjectFromApi(raw, index = 0) {
     code: raw.code || deriveCode(raw.name),
     description: raw.description || '',
     documentCount: raw.documentCount ?? 0,
-    color: raw.color || SUBJECT_COLORS[index % SUBJECT_COLORS.length],
+    color: SUBJECT_ACCENT_COLOR,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   }
@@ -139,7 +130,7 @@ export async function createSubject(payload) {
       name,
       code: code || deriveCode(name),
       description: (payload.description || '').trim(),
-      color: payload.color || '#3525cd',
+      color: SUBJECT_ACCENT_COLOR,
       documentCount: 0,
       createdAt: new Date().toISOString(),
     }
@@ -162,11 +153,7 @@ export async function createSubject(payload) {
   const { data } = await apiClient.post('/subjects', { name })
   invalidateCache('subjects:')
 
-  const mapped = mapSubjectFromApi(data.data, subjectsStore.length)
-
-  if (payload.color) {
-    mapped.color = payload.color
-  }
+  const mapped = mapSubjectFromApi(data.data)
 
   if (payload.description) {
     mapped.description = payload.description.trim()
@@ -219,10 +206,6 @@ export async function updateSubject(id, payload) {
   invalidateCache('subjects:')
 
   const mapped = mapSubjectFromApi(data.data)
-
-  if (payload.color) {
-    mapped.color = payload.color
-  }
 
   if (payload.description) {
     mapped.description = (payload.description || '').trim()

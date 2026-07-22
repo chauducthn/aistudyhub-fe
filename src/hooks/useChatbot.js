@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   clearChatHistory,
+  getPublicChatContextDocument,
   listChatContextDocuments,
+  searchPublicChatContextDocuments,
   sendChatMessage,
   getChatSessions,
   getSessionMessages,
@@ -17,6 +19,8 @@ export function useChatbot() {
   const [input, setInput] = useState('')
   const [documentId, setDocumentId] = useState('')
   const [documents, setDocuments] = useState([])
+  const [searchingPublicDocuments, setSearchingPublicDocuments] = useState(false)
+  const [publicDocumentSearchError, setPublicDocumentSearchError] = useState('')
   const [sending, setSending] = useState(false)
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [clearing, setClearing] = useState(false)
@@ -24,10 +28,16 @@ export function useChatbot() {
   const scrollRef = useRef(null)
   const sendingRef = useRef(false)
   const activeSessionRef = useRef(null)
+  const documentIdRef = useRef('')
   const sessionLoadRequestRef = useRef(0)
+  const publicSearchRequestRef = useRef(0)
 
   const [sessions, setSessions] = useState([])
   const [currentSessionId, setCurrentSessionId] = useState(null)
+
+  useEffect(() => {
+    documentIdRef.current = documentId
+  }, [documentId])
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -99,12 +109,26 @@ export function useChatbot() {
         ])
         if (ignore) return
 
-        if (docsRes.success) setDocuments(docsRes.data || [])
+        let contextDocuments = docsRes.success ? docsRes.data || [] : []
         const preselect = searchParams.get('doc')
         if (preselect && docsRes.success) {
-          const exists = (docsRes.data || []).some((d) => String(d.id) === String(preselect))
-          if (exists) setDocumentId(String(preselect))
+          const exists = contextDocuments.some((d) => String(d.id) === String(preselect))
+          if (!exists) {
+            try {
+              const publicDocument = await getPublicChatContextDocument(preselect)
+              if (publicDocument.success && publicDocument.data) {
+                contextDocuments = [...contextDocuments, publicDocument.data]
+              }
+            } catch {
+              // Ignore an invalid/private deep link and keep General help selected.
+            }
+          }
+          if (ignore) return
+          if (contextDocuments.some((d) => String(d.id) === String(preselect))) {
+            setDocumentId(String(preselect))
+          }
         }
+        setDocuments(contextDocuments)
       } catch (err) {
         if (!ignore) setError(getApiErrorMessage(err, 'Could not load chat data.'))
       } finally {
@@ -115,6 +139,45 @@ export function useChatbot() {
       ignore = true
     }
   }, [searchParams, loadSessions])
+
+  const searchPublicDocuments = useCallback(async (query) => {
+    const keyword = query.trim()
+    const requestId = ++publicSearchRequestRef.current
+    if (keyword.length < 2) {
+      setSearchingPublicDocuments(false)
+      setPublicDocumentSearchError('')
+      return
+    }
+
+    setSearchingPublicDocuments(true)
+    setPublicDocumentSearchError('')
+    try {
+      const response = await searchPublicChatContextDocuments(keyword)
+      if (requestId !== publicSearchRequestRef.current) return
+      if (!response.success) throw new Error(response.message || 'Could not search public documents.')
+
+      setDocuments((currentDocuments) => {
+        const ownDocuments = currentDocuments.filter((document) => document.source !== 'public')
+        const selectedPublicDocument = currentDocuments.find(
+          (document) => document.source === 'public'
+            && String(document.id) === String(documentIdRef.current),
+        )
+        const merged = new Map()
+        ownDocuments.forEach((document) => merged.set(String(document.id), document))
+        if (selectedPublicDocument) {
+          merged.set(String(selectedPublicDocument.id), selectedPublicDocument)
+        }
+        response.data.forEach((document) => merged.set(String(document.id), document))
+        return [...merged.values()]
+      })
+    } catch (err) {
+      if (requestId === publicSearchRequestRef.current) {
+        setPublicDocumentSearchError(getApiErrorMessage(err, 'Could not search public documents.'))
+      }
+    } finally {
+      if (requestId === publicSearchRequestRef.current) setSearchingPublicDocuments(false)
+    }
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
@@ -193,6 +256,9 @@ export function useChatbot() {
     documentId,
     setDocumentId,
     documents,
+    searchingPublicDocuments,
+    publicDocumentSearchError,
+    searchPublicDocuments,
     sending,
     loadingHistory,
     clearing,

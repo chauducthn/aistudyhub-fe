@@ -10,6 +10,7 @@ const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
 const DOCUMENT_CACHE_TTL_MS = 20_000
 const DOCUMENT_LIST_CACHE_TTL_MS = 15_000
 const DOCUMENT_UPLOAD_TIMEOUT_MS = 120_000
+export const DOCUMENT_UPLOAD_CONCURRENCY = 4
 
 export function mapDocumentFromApi(raw) {
   if (!raw) return raw
@@ -23,6 +24,7 @@ export function mapDocumentFromApi(raw) {
   return {
     id: String(raw.id),
     userId: raw.userId,
+    uploaderName: raw.uploaderName || raw.owner?.fullName || null,
     subjectId: raw.subjectId != null ? String(raw.subjectId) : '',
     subjectName: raw.subjectName || null,
     title: raw.title,
@@ -190,23 +192,16 @@ export async function getPublicDocumentPreview(id) {
 }
 
 const TEXT_PREVIEW_EXTENSIONS = new Set(['txt', 'md', 'csv', 'json', 'log'])
-const OFFICE_PREVIEW_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'])
 const IMAGE_PREVIEW_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'])
 
 function extOf(doc) {
   return (doc.fileType || doc.originalFilename?.split('.').pop() || '').toLowerCase()
 }
 
-/** URL công khai tới file thật (Cloudinary tuyệt đối hoặc /uploads qua proxy). */
-function fileSourceUrl(doc) {
-  return doc.downloadUrl || resolveMediaUrl(doc.fileUrl)
-}
 export async function buildPreviewFromDoc(doc) {
   const docId = normalizeDocId(doc.id)
   const ext = extOf(doc)
-  const src = fileSourceUrl(doc)
   const fileName = doc.fileName || doc.originalFilename
-  const isPublicUrl = /^https?:\/\//i.test(src || '')
 
   if (ext === 'docx' || ext === 'xlsx' || ext === 'xls') {
     try {
@@ -289,6 +284,7 @@ export async function uploadDocument(payload, onProgress) {
 
   const { data } = await apiClient.post('/documents', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: DOCUMENT_UPLOAD_TIMEOUT_MS,
     onUploadProgress: (event) => {
       if (!onProgress) return
 
@@ -310,44 +306,135 @@ export async function uploadDocument(payload, onProgress) {
 }
 
 export async function uploadDocuments(payload, onProgress) {
-  if (USE_MOCK) {
-    return uploadDocumentsMock(payload, onProgress)
-  }
-
   const files = payload.files || (payload.file ? [payload.file] : [])
-  const formData = new FormData()
-  files.forEach((f) => formData.append('files', f))
-  if (payload.title?.trim()) {
-    formData.append('title', payload.title.trim())
-  }
-  if (payload.description?.trim()) {
-    formData.append('description', payload.description.trim())
-  }
-  if (payload.subjectId) {
-    formData.append('subjectId', String(payload.subjectId))
+  const isMultiFileUpload = files.length > 1
+  if (files.length === 0) {
+    return {
+      success: false,
+      partialSuccess: false,
+      message: 'Please select at least one file to upload.',
+      data: [],
+      failures: [],
+    }
   }
 
-  const { data } = await apiClient.post('/documents/batch', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: DOCUMENT_UPLOAD_TIMEOUT_MS,
-    onUploadProgress: (event) => {
-      if (!onProgress) return
+  const states = files.map((file, index) => ({
+    index,
+    file,
+    fileName: file.name,
+    status: 'queued',
+    progress: 0,
+    error: null,
+  }))
+  const results = new Array(files.length)
+  const failures = []
+  let authenticationError = null
+  let nextIndex = 0
 
-      const percent = event.total
-        ? Math.round((event.loaded * 100) / event.total)
-        : 0
+  const emitProgress = (index, patch = {}) => {
+    states[index] = { ...states[index], ...patch }
+    if (!onProgress) return
 
-      onProgress(percent)
-    },
+    const totalBytes = states.reduce((sum, item) => sum + Math.max(item.file.size || 0, 1), 0)
+    const transferredBytes = states.reduce(
+      (sum, item) => sum + Math.max(item.file.size || 0, 1) * (item.progress / 100),
+      0,
+    )
+
+    onProgress({
+      files: states.map(progressState),
+      transferProgress: totalBytes > 0 ? Math.round((transferredBytes * 100) / totalBytes) : 0,
+      uploadedCount: states.filter((item) => item.status === 'uploaded').length,
+      failedCount: states.filter((item) => item.status === 'failed').length,
+      savingCount: states.filter((item) => item.status === 'saving').length,
+      totalCount: states.length,
+    })
+  }
+
+  onProgress?.({
+    files: states.map(progressState),
+    transferProgress: 0,
+    uploadedCount: 0,
+    failedCount: 0,
+    savingCount: 0,
+    totalCount: states.length,
   })
 
-  const body = unwrapApiResponse(data)
-  invalidateDocumentCaches()
+  const worker = async () => {
+    while (nextIndex < files.length) {
+      const index = nextIndex
+      nextIndex += 1
+      const file = files[index]
+      emitProgress(index, { status: 'uploading', progress: 0, error: null })
+
+      try {
+        const result = await uploadDocument(
+          {
+            ...payload,
+            file,
+            title: isMultiFileUpload
+              ? titleFromFilename(file.name)
+              : payload.title?.trim() || titleFromFilename(file.name),
+          },
+          (percent) => emitProgress(index, {
+            status: percent >= 100 ? 'saving' : 'uploading',
+            progress: percent,
+          }),
+        )
+        if (!result.success || !result.data) {
+          throw new Error(result.message || 'Storage did not confirm the uploaded document.')
+        }
+
+        results[index] = result.data
+        emitProgress(index, { status: 'uploaded', progress: 100 })
+      } catch (error) {
+        if (error?.response?.status === 401 && !authenticationError) {
+          authenticationError = error
+        }
+        const message = uploadErrorMessage(error)
+        failures.push({ index, fileName: file.name, message })
+        emitProgress(index, { status: 'failed', error: message })
+      }
+    }
+  }
+
+  const workerCount = Math.min(DOCUMENT_UPLOAD_CONCURRENCY, files.length)
+  await Promise.all(Array.from({ length: workerCount }, () => worker()))
+
+  const uploaded = results.filter(Boolean)
+  if (authenticationError && uploaded.length === 0) {
+    throw authenticationError
+  }
 
   return {
-    ...body,
-    data: Array.isArray(body.data) ? body.data.map(mapDocumentFromApi) : [],
+    success: failures.length === 0,
+    partialSuccess: uploaded.length > 0 && failures.length > 0,
+    message: failures.length === 0
+      ? `${uploaded.length} document${uploaded.length === 1 ? '' : 's'} uploaded.`
+      : `${uploaded.length}/${files.length} documents uploaded. ${failures.length} failed.`,
+    data: uploaded,
+    failures: failures.sort((left, right) => left.index - right.index),
   }
+}
+
+function titleFromFilename(fileName = '') {
+  const lastDot = fileName.lastIndexOf('.')
+  const title = lastDot > 0 ? fileName.slice(0, lastDot) : fileName
+  return title.trim() || 'Untitled Document'
+}
+
+function progressState(state) {
+  return {
+    index: state.index,
+    fileName: state.fileName,
+    status: state.status,
+    progress: state.progress,
+    error: state.error,
+  }
+}
+
+function uploadErrorMessage(error) {
+  return error?.response?.data?.message || error?.message || 'Upload failed.'
 }
 
 export async function updateDocument(id, payload) {
@@ -590,37 +677,6 @@ async function uploadDocumentMock(payload, onProgress) {
     success: true,
     message: 'Document uploaded (mock).',
     data: newDoc,
-  }
-}
-
-async function uploadDocumentsMock(payload, onProgress) {
-  for (let percent = 0; percent <= 100; percent += 10) {
-    await delay(80)
-    onProgress?.(percent)
-  }
-
-  const files = payload.files || (payload.file ? [payload.file] : [])
-  const created = files.map((file, i) => {
-    return {
-      id: `doc-${Date.now()}-${i}`,
-      title: payload.title || file.name,
-      description: payload.description,
-      subjectId: payload.subjectId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'pdf',
-      uploadedAt: new Date().toISOString(),
-      status: 'PRIVATE',
-      visibility: 'PRIVATE',
-    }
-  })
-
-  documentsStore = [...created, ...documentsStore]
-
-  return {
-    success: true,
-    message: 'Documents uploaded (mock).',
-    data: created,
   }
 }
 

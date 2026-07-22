@@ -115,8 +115,12 @@ export default function ChatbotPage() {
               onSubmit={chat.send}
               sending={chat.sending}
               documents={chat.documents}
+              searchingPublicDocuments={chat.searchingPublicDocuments}
+              publicDocumentSearchError={chat.publicDocumentSearchError}
+              onSearchPublicDocuments={chat.searchPublicDocuments}
               documentId={chat.documentId}
               onDocumentIdChange={chat.setDocumentId}
+              currentUserId={user?.id}
             />
           </div>
         </div>
