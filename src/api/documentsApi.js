@@ -22,6 +22,7 @@ export function mapDocumentFromApi(raw) {
   return {
     id: String(raw.id),
     userId: raw.userId,
+    uploaderName: raw.uploaderName || null,
     subjectId: raw.subjectId != null ? String(raw.subjectId) : '',
     subjectName: raw.subjectName || null,
     title: raw.title,
