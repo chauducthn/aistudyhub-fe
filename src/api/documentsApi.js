@@ -397,6 +397,29 @@ export async function updateDocument(id, payload) {
     : { success: true, message: null, data: null }
 }
 
+export async function updateDocumentContent(id, { content, base64Data }) {
+  if (USE_MOCK) {
+    return { success: true, data: null }
+  }
+  const docId = normalizeDocId(id)
+  const { data } = await apiClient.put(`/documents/${docId}/content`, { content, base64Data })
+  const result = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
+  return {
+    ...result,
+    data: result.data ? mapDocumentFromApi(result.data) : null,
+  }
+}
+
+export async function getDocumentEditorHtml(id) {
+  if (USE_MOCK) {
+    return { success: true, data: { html: '<p>Mock editor content</p>' } }
+  }
+  const docId = normalizeDocId(id)
+  const { data } = await apiClient.get(`/documents/${docId}/editor-html`)
+  return unwrapApiResponse(data)
+}
+
 export async function deleteDocument(id) {
   if (USE_MOCK) {
     return deleteDocumentMock(id)

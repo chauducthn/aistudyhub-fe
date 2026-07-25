@@ -350,6 +350,11 @@ function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) 
         type={preview.type}
         fileName={doc.originalFilename || doc.title}
         fallbackText={preview.fallbackText}
+        documentId={doc.id}
+        onSaveSuccess={async () => {
+          const docRes = await getDocument(doc.id)
+          if (docRes.success) setDoc(docRes.data)
+        }}
       />
     )
   }
