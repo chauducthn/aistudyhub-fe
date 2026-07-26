@@ -266,7 +266,14 @@ export async function buildPreviewFromDoc(doc) {
   return {
     success: true,
     message: null,
-    data: { type: 'text', textContent, truncated: blob.size > MAX_TEXT_PREVIEW_BYTES, fileName },
+    data: {
+      type: ext === 'md' ? 'md' : (ext === 'txt' ? 'txt' : 'text'),
+      previewUrl: window.URL.createObjectURL(blob),
+      textContent,
+      blob,
+      truncated: blob.size > MAX_TEXT_PREVIEW_BYTES,
+      fileName,
+    },
   }
 }
 

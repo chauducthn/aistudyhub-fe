@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import * as docx from 'docx-preview'
 import * as XLSX from 'xlsx'
-import { Loader2, AlertCircle, FileSpreadsheet, FileText, Edit2, Save } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Loader2, AlertCircle, FileSpreadsheet, FileText, Edit2, Save, FileCode } from 'lucide-react'
 import { updateDocumentContent, getDocumentEditorHtml } from '../api/documentsApi'
 
 export default function OfficePreviewer({
@@ -25,6 +27,9 @@ export default function OfficePreviewer({
   const [saveError, setSaveError] = useState(null)
   const [initialHtml, setInitialHtml] = useState('')
   const [gridData, setGridData] = useState([])
+
+  // Markdown/Text states
+  const [mdText, setMdText] = useState('')
 
   // Excel states
   const [workbook, setWorkbook] = useState(null)
@@ -168,6 +173,11 @@ export default function OfficePreviewer({
           if (wb.SheetNames.length > 0) {
             setActiveSheet(wb.SheetNames[0])
           }
+          setLoading(false)
+        } else if (type === 'md' || type === 'txt') {
+          if (!isMounted) return
+          const text = await activeBlob.text()
+          setMdText(text)
           setLoading(false)
         }
       } catch (err) {
@@ -328,6 +338,9 @@ export default function OfficePreviewer({
         const base64 = arrayBufferToBase64(out)
         const res = await updateDocumentContent(documentId, { base64Data: base64 })
         if (!res.success) throw new Error(res.message || 'Failed to save spreadsheet content.')
+      } else if (type === 'md' || type === 'txt') {
+        const res = await updateDocumentContent(documentId, { content: mdText })
+        if (!res.success) throw new Error(res.message || 'Failed to save document content.')
       }
 
       setIsEditing(false)
@@ -346,15 +359,15 @@ export default function OfficePreviewer({
     document.execCommand(command, false, value)
   }
 
-  // Early return for loading and error ONLY for XLSX type in view mode
-  if (type === 'xlsx' && !isEditing) {
+  // Early returns for loading and error for Excel, MD, and TXT in view mode
+  if ((type === 'xlsx' || type === 'md' || type === 'txt') && !isEditing) {
     if (loading) {
       return (
         <div className="grid h-[620px] place-items-center bg-[#f8f9ff]">
           <div className="text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#3525cd]" />
             <p className="mt-3 text-sm font-semibold text-[#74798a]">
-              Loading Spreadsheet sheets...
+              Preparing preview...
             </p>
           </div>
         </div>
@@ -372,6 +385,246 @@ export default function OfficePreviewer({
         </div>
       )
     }
+  }
+
+  // MARKDOWN & TXT VIEWER/EDITOR
+  if (type === 'md' || type === 'txt') {
+    if (isEditing) {
+      return (
+        <div className="h-[620px] flex flex-col bg-[#f0f1f5] border-t border-b border-[#c7c4d8]/20 md-outer-wrapper relative">
+          <style dangerouslySetInnerHTML={{ __html: `
+            .markdown-body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+              font-size: 15px;
+              line-height: 1.6;
+              color: #1f2229;
+            }
+            .markdown-body h1 {
+              font-size: 1.8em;
+              font-weight: 800;
+              padding-bottom: 0.3em;
+              border-bottom: 1px solid #eaecef;
+              margin-top: 20px;
+              margin-bottom: 12px;
+            }
+            .markdown-body h2 {
+              font-size: 1.4em;
+              font-weight: 700;
+              padding-bottom: 0.3em;
+              border-bottom: 1px solid #eaecef;
+              margin-top: 20px;
+              margin-bottom: 12px;
+            }
+            .markdown-body h3 {
+              font-size: 1.2em;
+              font-weight: 600;
+              margin-top: 16px;
+              margin-bottom: 8px;
+            }
+            .markdown-body p {
+              margin-bottom: 12px;
+            }
+            .markdown-body ul, .markdown-body ol {
+              padding-left: 2em;
+              margin-bottom: 12px;
+            }
+            .markdown-body ul {
+              list-style-type: disc;
+            }
+            .markdown-body ol {
+              list-style-type: decimal;
+            }
+            .markdown-body li {
+              margin-top: 0.25em;
+            }
+            .markdown-body code {
+              padding: 0.2em 0.4em;
+              background-color: rgba(27,31,35,0.06);
+              border-radius: 4px;
+              font-family: monospace;
+              font-size: 85%;
+            }
+            .markdown-body pre {
+              padding: 12px;
+              background-color: #f6f8fa;
+              border-radius: 6px;
+              margin-bottom: 12px;
+              overflow-x: auto;
+            }
+            .markdown-body table {
+              border-collapse: collapse;
+              width: 100%;
+              margin-bottom: 12px;
+            }
+            .markdown-body th, .markdown-body td {
+              padding: 6px 12px;
+              border: 1px solid #dfe2e5;
+            }
+            .markdown-body tr:nth-child(2n) {
+              background-color: #f6f8fa;
+            }
+          `}} />
+
+          {/* Header bar */}
+          <div className="bg-[#1f2937] text-white px-4 py-2 flex items-center justify-between shadow-sm shrink-0 select-none">
+            <div className="flex items-center gap-2">
+              <FileCode className="h-5 w-5 text-indigo-400" />
+              <span className="text-sm font-semibold truncate max-w-sm">{fileName}</span>
+              <span className="text-xs bg-indigo-500/25 text-indigo-300 px-1.5 py-0.5 rounded font-mono font-medium">{type.toUpperCase()} Editor</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {saveError && <span className="text-xs text-red-200 font-medium mr-2">{saveError}</span>}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 transition px-3 py-1 rounded text-xs font-bold shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false)
+                  setSaveError(null)
+                }}
+                disabled={saving}
+                className="inline-flex items-center bg-slate-700 text-white hover:bg-slate-600 transition px-3 py-1 rounded text-xs font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          {/* Side by side layout */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left: Editor Textarea */}
+            <div className="w-1/2 h-full flex flex-col">
+              <textarea
+                value={mdText}
+                onChange={(e) => setMdText(e.target.value)}
+                className="flex-1 p-6 font-mono text-sm leading-6 bg-slate-900 text-slate-100 border-r border-slate-700 outline-none resize-none overflow-y-auto"
+                placeholder="Write markdown contents here..."
+              />
+            </div>
+
+            {/* Right: Live Preview */}
+            <div className="w-1/2 h-full bg-white p-8 overflow-y-auto markdown-body">
+              {type === 'md' ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{mdText}</ReactMarkdown>
+              ) : (
+                <pre className="whitespace-pre-wrap font-mono">{mdText}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="h-[620px] flex flex-col bg-[#f0f1f5] border-t border-b border-[#c7c4d8]/20 md-outer-wrapper relative">
+        <style dangerouslySetInnerHTML={{ __html: `
+          .markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #1f2229;
+          }
+          .markdown-body h1 {
+            font-size: 1.8em;
+            font-weight: 800;
+            padding-bottom: 0.3em;
+            border-bottom: 1px solid #eaecef;
+            margin-top: 20px;
+            margin-bottom: 12px;
+          }
+          .markdown-body h2 {
+            font-size: 1.4em;
+            font-weight: 700;
+            padding-bottom: 0.3em;
+            border-bottom: 1px solid #eaecef;
+            margin-top: 20px;
+            margin-bottom: 12px;
+          }
+          .markdown-body h3 {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-top: 16px;
+            margin-bottom: 8px;
+          }
+          .markdown-body p {
+            margin-bottom: 12px;
+          }
+          .markdown-body ul, .markdown-body ol {
+            padding-left: 2em;
+            margin-bottom: 12px;
+          }
+          .markdown-body ul {
+            list-style-type: disc;
+          }
+          .markdown-body ol {
+            list-style-type: decimal;
+          }
+          .markdown-body li {
+            margin-top: 0.25em;
+          }
+          .markdown-body code {
+            padding: 0.2em 0.4em;
+            background-color: rgba(27,31,35,0.06);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 85%;
+          }
+          .markdown-body pre {
+            padding: 12px;
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+          }
+          .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 12px;
+          }
+          .markdown-body th, .markdown-body td {
+            padding: 6px 12px;
+            border: 1px solid #dfe2e5;
+          }
+          .markdown-body tr:nth-child(2n) {
+            background-color: #f6f8fa;
+          }
+        `}} />
+
+        {/* Header bar */}
+        <div className="bg-[#1f2937] text-white px-4 py-2 flex items-center justify-between shadow-sm shrink-0 select-none">
+          <div className="flex items-center gap-2">
+            <FileCode className="h-5 w-5 text-indigo-400" />
+            <span className="text-sm font-semibold truncate max-w-sm">{fileName}</span>
+            <span className="text-xs bg-indigo-500/25 text-indigo-300 px-1.5 py-0.5 rounded font-mono font-medium">{type.toUpperCase()}</span>
+          </div>
+          {documentId && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="inline-flex items-center gap-1.5 bg-white text-[#1f2937] hover:bg-slate-100 transition px-3 py-1 rounded text-xs font-bold shadow-sm cursor-pointer"
+            >
+              <Edit2 className="h-3 w-3" />
+              Edit Content
+            </button>
+          )}
+        </div>
+
+        {/* Preview Container */}
+        <div className="flex-1 overflow-auto py-6 px-4">
+          <div className="mx-auto max-w-[820px] bg-white p-12 rounded-xl shadow-sm border border-slate-200 markdown-body min-h-full">
+            {type === 'md' ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{mdText}</ReactMarkdown>
+            ) : (
+              <pre className="whitespace-pre-wrap font-mono bg-slate-50 p-6 rounded-lg border border-slate-100 text-sm leading-6">{mdText}</pre>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (type === 'docx') {
