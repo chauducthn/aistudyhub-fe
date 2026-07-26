@@ -193,6 +193,7 @@ export default function DocumentDetailPage() {
                   error={previewError}
                   onDownload={handleDownload}
                   downloading={downloading}
+                  onUpdateDoc={setDoc}
                 />
               </section>
 
@@ -235,7 +236,7 @@ export default function DocumentDetailPage() {
   )
 }
 
-function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) {
+function PreviewPane({ doc, preview, loading, error, onDownload, downloading, onUpdateDoc }) {
   if (loading) {
     return (
       <div className="grid h-[620px] place-items-center bg-[#f8f9ff]">
@@ -259,14 +260,19 @@ function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) 
     )
   }
 
-  if ((preview?.type === 'docx' || preview?.type === 'xlsx') && preview.previewUrl) {
+  if ((preview?.type === 'docx' || preview?.type === 'xlsx' || preview?.type === 'md' || preview?.type === 'txt') && preview.previewUrl) {
     return (
       <OfficePreviewer
         previewUrl={preview.previewUrl}
         blob={preview.blob}
         type={preview.type}
         fileName={doc.originalFilename || doc.title}
-        fallbackText={preview.fallbackText}
+        fallbackText={preview.fallbackText || preview.textContent}
+        documentId={doc.id}
+        onSaveSuccess={async () => {
+          const docRes = await getDocument(doc.id)
+          if (docRes.success && onUpdateDoc) onUpdateDoc(docRes.data)
+        }}
       />
     )
   }
