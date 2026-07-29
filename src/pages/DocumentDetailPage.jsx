@@ -11,8 +11,11 @@ import {
   Pencil,
 } from 'lucide-react'
 import DashboardShell from '../components/DashboardShell'
+import CsvEditor from '../components/CsvEditor'
 import ExtractionStatusPanel from '../components/documents/ExtractionStatusPanel'
 import OfficePreviewer from '../components/OfficePreviewer'
+import PdfAnnotator from '../components/PdfAnnotator'
+import PptxReplacement from '../components/PptxReplacement'
 import {
   downloadDocument,
   getDocument,
@@ -83,7 +86,7 @@ export default function DocumentDetailPage() {
         const res = await getDocumentPreview(doc)
         if (ignore) return
         if (res.success) {
-          if (res.data?.type === 'pdf' || res.data?.type === 'image') objectUrl = res.data.previewUrl
+          if (res.data?.previewUrl) objectUrl = res.data.previewUrl
           setPreview(res.data)
           setPreviewError('')
         } else {
@@ -181,9 +184,11 @@ export default function DocumentDetailPage() {
                 <div className="flex items-center justify-between border-b border-[#c7c4d8]/20 px-6 py-4">
                   <div>
                     <h2 className="text-lg font-extrabold text-[#0b1c30]">Preview</h2>
-                    <p className="text-sm text-[#74798a]">
-                      PDF and TXT files can be previewed directly when supported.
-                    </p>
+                    {preview?.type === 'pptx-replace' && (
+                      <p className="text-sm text-[#74798a]">
+                        Edit supported files directly or replace an externally edited PPTX.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <PreviewPane
@@ -193,6 +198,7 @@ export default function DocumentDetailPage() {
                   error={previewError}
                   onDownload={handleDownload}
                   downloading={downloading}
+                  onUpdateDoc={setDoc}
                 />
               </section>
 
@@ -235,7 +241,7 @@ export default function DocumentDetailPage() {
   )
 }
 
-function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) {
+function PreviewPane({ doc, preview, loading, error, onDownload, downloading, onUpdateDoc }) {
   if (loading) {
     return (
       <div className="grid h-[620px] place-items-center bg-[#f8f9ff]">
@@ -249,24 +255,62 @@ function PreviewPane({ doc, preview, loading, error, onDownload, downloading }) 
 
   if (preview?.type === 'pdf' && preview.previewUrl) {
     return (
-      <div className="h-[620px] bg-[#f8f9ff]">
-        <iframe
-          title={doc.title}
-          src={preview.previewUrl}
-          className="h-full w-full border-0"
-        />
-      </div>
+      <PdfAnnotator
+        blob={preview.blob}
+        previewUrl={preview.previewUrl}
+        fileName={doc.originalFilename || doc.title}
+        documentId={doc.id}
+        onSaveSuccess={async () => {
+          const docRes = await getDocument(doc.id)
+          if (docRes.success && onUpdateDoc) onUpdateDoc(docRes.data)
+        }}
+      />
     )
   }
 
-  if ((preview?.type === 'docx' || preview?.type === 'xlsx') && preview.previewUrl) {
+  if (preview?.type === 'csv' && preview.previewUrl) {
+    return (
+      <CsvEditor
+        blob={preview.blob}
+        previewUrl={preview.previewUrl}
+        fileName={doc.originalFilename || doc.title}
+        documentId={doc.id}
+        onSaveSuccess={async () => {
+          const docRes = await getDocument(doc.id)
+          if (docRes.success && onUpdateDoc) onUpdateDoc(docRes.data)
+        }}
+      />
+    )
+  }
+
+  if (preview?.type === 'pptx-replace') {
+    return (
+      <PptxReplacement
+        documentId={doc.id}
+        fileName={doc.originalFilename || doc.title}
+        onDownload={onDownload}
+        downloading={downloading}
+        onReplaceSuccess={async () => {
+          const docRes = await getDocument(doc.id)
+          if (docRes.success && onUpdateDoc) onUpdateDoc(docRes.data)
+        }}
+      />
+    )
+  }
+
+  if ((preview?.type === 'docx' || preview?.type === 'xlsx' || preview?.type === 'md' || preview?.type === 'txt') && preview.previewUrl) {
     return (
       <OfficePreviewer
         previewUrl={preview.previewUrl}
         blob={preview.blob}
         type={preview.type}
         fileName={doc.originalFilename || doc.title}
-        fallbackText={preview.fallbackText}
+        fallbackText={preview.fallbackText || preview.textContent}
+        documentId={doc.id}
+        onSaveSuccess={async () => {
+          const docRes = await getDocument(doc.id)
+          if (docRes.success && onUpdateDoc) onUpdateDoc(docRes.data)
+        }}
       />
     )
   }

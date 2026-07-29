@@ -223,6 +223,17 @@ export async function buildPreviewFromDoc(doc) {
     }
   }
 
+  if (ext === 'pptx') {
+    return {
+      success: true,
+      message: null,
+      data: {
+        type: 'pptx-replace',
+        fileName,
+      },
+    }
+  }
+
   if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext) && !IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
     // If it has extracted text, we can show it as a fallback
     if (doc.extractedText) {
@@ -249,7 +260,16 @@ export async function buildPreviewFromDoc(doc) {
 
   if (ext === 'pdf') {
     const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
-    return { success: true, message: null, data: { type: 'pdf', previewUrl: window.URL.createObjectURL(pdfBlob), fileName } }
+    return {
+      success: true,
+      message: null,
+      data: {
+        type: 'pdf',
+        previewUrl: window.URL.createObjectURL(pdfBlob),
+        blob: pdfBlob,
+        fileName,
+      },
+    }
   }
 
   if (IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
@@ -261,7 +281,14 @@ export async function buildPreviewFromDoc(doc) {
   return {
     success: true,
     message: null,
-    data: { type: 'text', textContent, truncated: blob.size > MAX_TEXT_PREVIEW_BYTES, fileName },
+    data: {
+      type: ext === 'md' ? 'md' : (ext === 'txt' ? 'txt' : (ext === 'csv' ? 'csv' : 'text')),
+      previewUrl: window.URL.createObjectURL(blob),
+      textContent,
+      blob,
+      truncated: blob.size > MAX_TEXT_PREVIEW_BYTES,
+      fileName,
+    },
   }
 }
 
@@ -486,6 +513,52 @@ export async function updateDocument(id, payload) {
         data: result.data ? mapDocumentFromApi(result.data) : null,
       }
     : { success: true, message: null, data: null }
+}
+
+export async function updateDocumentContent(id, { content, base64Data }) {
+  if (USE_MOCK) {
+    return { success: true, data: null }
+  }
+  const docId = normalizeDocId(id)
+  const { data } = await apiClient.put(`/documents/${docId}/content`, { content, base64Data })
+  const result = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
+  return {
+    ...result,
+    data: result.data ? mapDocumentFromApi(result.data) : null,
+  }
+}
+
+export async function replaceDocumentFile(id, file, onProgress) {
+  if (USE_MOCK) {
+    return { success: true, data: null }
+  }
+  const docId = normalizeDocId(id)
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await apiClient.put(`/documents/${docId}/file`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: DOCUMENT_UPLOAD_TIMEOUT_MS,
+    onUploadProgress: (event) => {
+      if (!onProgress) return
+      onProgress(event.total ? Math.round((event.loaded * 100) / event.total) : 0)
+    },
+  })
+  const result = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
+  return {
+    ...result,
+    data: result.data ? mapDocumentFromApi(result.data) : null,
+  }
+}
+
+export async function getDocumentEditorHtml(id) {
+  if (USE_MOCK) {
+    return { success: true, data: { html: '<p>Mock editor content</p>' } }
+  }
+  const docId = normalizeDocId(id)
+  const { data } = await apiClient.get(`/documents/${docId}/editor-html`)
+  return unwrapApiResponse(data)
 }
 
 export async function deleteDocument(id) {
