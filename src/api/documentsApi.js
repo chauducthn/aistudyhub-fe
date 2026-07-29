@@ -223,6 +223,17 @@ export async function buildPreviewFromDoc(doc) {
     }
   }
 
+  if (ext === 'pptx') {
+    return {
+      success: true,
+      message: null,
+      data: {
+        type: 'pptx-replace',
+        fileName,
+      },
+    }
+  }
+
   if (ext !== 'pdf' && !TEXT_PREVIEW_EXTENSIONS.has(ext) && !IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
     // If it has extracted text, we can show it as a fallback
     if (doc.extractedText) {
@@ -249,7 +260,16 @@ export async function buildPreviewFromDoc(doc) {
 
   if (ext === 'pdf') {
     const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
-    return { success: true, message: null, data: { type: 'pdf', previewUrl: window.URL.createObjectURL(pdfBlob), fileName } }
+    return {
+      success: true,
+      message: null,
+      data: {
+        type: 'pdf',
+        previewUrl: window.URL.createObjectURL(pdfBlob),
+        blob: pdfBlob,
+        fileName,
+      },
+    }
   }
 
   if (IMAGE_PREVIEW_EXTENSIONS.has(ext)) {
@@ -262,7 +282,7 @@ export async function buildPreviewFromDoc(doc) {
     success: true,
     message: null,
     data: {
-      type: ext === 'md' ? 'md' : (ext === 'txt' ? 'txt' : 'text'),
+      type: ext === 'md' ? 'md' : (ext === 'txt' ? 'txt' : (ext === 'csv' ? 'csv' : 'text')),
       previewUrl: window.URL.createObjectURL(blob),
       textContent,
       blob,
@@ -501,6 +521,29 @@ export async function updateDocumentContent(id, { content, base64Data }) {
   }
   const docId = normalizeDocId(id)
   const { data } = await apiClient.put(`/documents/${docId}/content`, { content, base64Data })
+  const result = unwrapApiResponse(data)
+  invalidateDocumentCaches(docId)
+  return {
+    ...result,
+    data: result.data ? mapDocumentFromApi(result.data) : null,
+  }
+}
+
+export async function replaceDocumentFile(id, file, onProgress) {
+  if (USE_MOCK) {
+    return { success: true, data: null }
+  }
+  const docId = normalizeDocId(id)
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await apiClient.put(`/documents/${docId}/file`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: DOCUMENT_UPLOAD_TIMEOUT_MS,
+    onUploadProgress: (event) => {
+      if (!onProgress) return
+      onProgress(event.total ? Math.round((event.loaded * 100) / event.total) : 0)
+    },
+  })
   const result = unwrapApiResponse(data)
   invalidateDocumentCaches(docId)
   return {

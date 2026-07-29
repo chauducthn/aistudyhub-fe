@@ -17,6 +17,8 @@
     "docx-preview": "^0.4.0",
     "highlight.js": "^11.10.0",
     "lucide-react": "^1.16.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^9.0.1",

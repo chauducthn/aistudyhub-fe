@@ -19,8 +19,6 @@ export default function OfficePreviewer({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [useFallback, setUseFallback] = useState(false)
-  const [debugLogs, setDebugLogs] = useState([])
-
   // Edit states
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -41,7 +39,6 @@ export default function OfficePreviewer({
 
   const addLog = (msg) => {
     console.log(`[OfficePreviewer Debug] ${msg}`)
-    setDebugLogs((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`])
   }
 
   // Initialize HTML once when entering edit mode, inheriting clean HTML from the database
@@ -177,6 +174,10 @@ export default function OfficePreviewer({
           addLog(`Workbook parsed. Sheets found: ${wb.SheetNames.join(', ')}`)
           if (wb.SheetNames.length > 0) {
             setActiveSheet(wb.SheetNames[0])
+            setGridData(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
+              header: 1,
+              defval: '',
+            }))
           }
           setLoading(false)
         } else if (type === 'md' || type === 'txt') {
@@ -200,15 +201,6 @@ export default function OfficePreviewer({
       isMounted = false
     }
   }, [previewUrl, blob, type, fileName, fallbackText, isEditing])
-
-  // Keep editable cell data in sync with the selected workbook sheet.
-  useEffect(() => {
-    if (type === 'xlsx' && workbook && activeSheet) {
-      const sheet = workbook.Sheets[activeSheet]
-      const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
-      setGridData(aoa)
-    }
-  }, [workbook, activeSheet, type])
 
   const handleCellChange = (rowIndex, colIndex, val) => {
     setGridData((prev) => {
@@ -1038,6 +1030,10 @@ export default function OfficePreviewer({
                 onClick={() => {
                   if (!saving) {
                     setActiveSheet(sheetName)
+                    const sheet = workbook?.Sheets[sheetName]
+                    if (sheet) {
+                      setGridData(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }))
+                    }
                   }
                 }}
                 className={`excel-sheet-tab ${activeSheet === sheetName ? 'active' : ''}`}
